@@ -392,7 +392,7 @@ def build_pdf_story(toc_page_map=None):
         [Paragraph("Authorization", style_td_bold), Paragraph("Role-Based Access Control (RBAC)", style_td), Paragraph("Restricts sensitive APIs to authorized roles (`Admin` or `Doctor`).", style_td)],
         [Paragraph("API Gateway", style_td_bold), Paragraph("YARP / Reverse Proxy", style_td), Paragraph("Provides unified request routing, health checks, and cross-cutting security enforcement.", style_td)],
         [Paragraph("API Documentation", style_td_bold), Paragraph("Swagger UI / OpenAPI 3.0", style_td), Paragraph("Interactive browser-based API testing sandbox with JWT lock integration.", style_td)],
-        [Paragraph("Containerization", style_td_bold), Paragraph("Docker & Docker Compose", style_td), Paragraph("Optional container packaging for multi-service local or cloud deployment.", style_td)],
+        [Paragraph("Hosting / Runtime", style_td_bold), Paragraph("Kestrel / Native Process", style_td), Paragraph("High-performance cross-platform self-hosted ASP.NET Core runtime.", style_td)],
         [Paragraph("Shared Library", style_td_bold), Paragraph("PharmacyManagement.Common", style_td), Paragraph("Shared NuGet/class library standardizing JWT, hashing, constants, and envelopes.", style_td)]
     ]
     t_tech = Table(tech_data, colWidths=[120, 140, 272])
@@ -436,7 +436,7 @@ def build_pdf_story(toc_page_map=None):
     story.append(TrackedParagraph("6.0 Flow Diagram", style_section_h1, "sec_6"))
     flow_img_path = os.path.join(DIAGRAMS_DIR, "04_Flow_Diagram.jpg")
     if os.path.exists(flow_img_path):
-        story.append(Image(flow_img_path, width=450, height=528))
+        story.append(Image(flow_img_path, width=450, height=486))
     story.append(Spacer(1, 6))
     story.append(Paragraph("Description", style_desc_heading))
     story.append(Paragraph(
@@ -533,7 +533,7 @@ def build_pdf_story(toc_page_map=None):
     story.append(TrackedParagraph("9.0 Entity-Relationship Diagram", style_section_h1, "sec_9"))
     er_img_path = os.path.join(DIAGRAMS_DIR, "05_ER_Diagram.jpg")
     if os.path.exists(er_img_path):
-        story.append(Image(er_img_path, width=490, height=337))
+        story.append(Image(er_img_path, width=490, height=343))
     story.append(Spacer(1, 6))
     story.append(Paragraph("Description", style_desc_heading))
     story.append(Paragraph(
@@ -556,7 +556,7 @@ def build_pdf_story(toc_page_map=None):
     story.append(TrackedParagraph("10.0 Database Diagram", style_section_h1, "sec_10"))
     db_img_path = os.path.join(DIAGRAMS_DIR, "06_Database_Schema_Diagram.jpg")
     if os.path.exists(db_img_path):
-        story.append(Image(db_img_path, width=490, height=336))
+        story.append(Image(db_img_path, width=490, height=338))
     story.append(Spacer(1, 6))
     story.append(Paragraph("Description", style_desc_heading))
     story.append(Paragraph(
@@ -585,7 +585,7 @@ def build_pdf_story(toc_page_map=None):
     story.append(TrackedParagraph("11.0 Sequence Diagram", style_section_h1, "sec_11"))
     seq_img_path = os.path.join(DIAGRAMS_DIR, "03_Sequence_Diagram.jpg")
     if os.path.exists(seq_img_path):
-        story.append(Image(seq_img_path, width=490, height=370))
+        story.append(Image(seq_img_path, width=490, height=357))
     story.append(Spacer(1, 6))
     story.append(Paragraph("Description", style_desc_heading))
     story.append(Paragraph(

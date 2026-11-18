@@ -482,7 +482,7 @@ def build_docx(output_path):
         ("Authorization", "Role-Based Access Control (RBAC)", "Restricts sensitive APIs to authorized roles (Admin or Doctor)."),
         ("API Gateway", "YARP / Reverse Proxy", "Provides unified request routing, health checks, and cross-cutting security enforcement."),
         ("API Documentation", "Swagger UI / OpenAPI 3.0", "Interactive browser-based API testing sandbox with JWT lock integration."),
-        ("Containerization", "Docker & Docker Compose", "Optional container packaging for multi-service local or cloud deployment."),
+        ("Hosting / Runtime", "Kestrel / Native Process", "High-performance cross-platform self-hosted ASP.NET Core runtime."),
         ("Shared Library", "PharmacyManagement.Common", "Shared NuGet/class library standardizing JWT, hashing, constants, and envelopes.")
     ]
     for r_idx, (cat, tech, purp) in enumerate(tech_items, start=1):

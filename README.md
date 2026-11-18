@@ -15,7 +15,6 @@ Each microservice is an independent Web API adhering to the internal **MVC (Mode
 - **Database**: Microsoft SQL Server (LocalDB / Dedicated SQL Server Instances)
 - **Security**: JWT (JSON Web Tokens) Bearer Authentication with Role-Based Access Control (`Admin`, `Doctor`)
 - **API Documentation & Testing**: Swagger / OpenAPI with Bearer Authorization Lock Support
-- **Containerization**: Docker & Docker Compose
 
 ---
 
@@ -84,7 +83,6 @@ All diagrams are available in high-resolution JPG format with professional color
 ```
 pharmacyManagement/
 ├── PharmacyManagement.sln               # Master Solution File
-├── docker-compose.yml                   # Docker configuration for SQL Server + all 5 services
 ├── scripts/
 │   └── InitDatabases.sql                # Complete SQL Server creation & seed script
 ├── docs/
@@ -155,12 +153,6 @@ dotnet run --launch-profile http
 # Terminal 5: SaleReport Service
 cd src/Services/SaleReportService
 dotnet run --launch-profile http
-```
-
-### Option 3: Docker Compose
-Run the entire solution including SQL Server with a single command:
-```bash
-docker-compose up -d --build
 ```
 
 ---
