@@ -18,7 +18,7 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
-    /// Process payment for an order (Doctor or Checkout process)
+    /// Process payment for an order (Doctor checkout process)
     /// </summary>
     [Authorize]
     [HttpPost]
@@ -33,6 +33,27 @@ public class PaymentsController : ControllerBase
         }
 
         var result = await _paymentService.ProcessPaymentAsync(dto);
+        if (!result.Success) return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Payment Simulation: Simulates payment gateway processing (Doctor user)
+    /// </summary>
+    [Authorize]
+    [HttpPost("simulate")]
+    [ProducesResponseType(typeof(ApiResponse<PaymentResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SimulatePayment([FromBody] SimulatePaymentDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<PaymentResponseDto>.FailureResult("Validation failed.", errors));
+        }
+
+        var result = await _paymentService.SimulatePaymentAsync(dto);
         if (!result.Success) return BadRequest(result);
 
         return Ok(result);

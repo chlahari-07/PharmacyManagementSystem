@@ -16,6 +16,21 @@ public class ProcessPaymentDto
     public string PaymentMethod { get; set; } = "CreditCard"; // CreditCard, DebitCard, UPI, NetBanking, Cash
 }
 
+public class SimulatePaymentDto
+{
+    [Required]
+    public int OrderId { get; set; }
+
+    [Required]
+    [Range(0.01, 1000000.00, ErrorMessage = "Payment amount must be greater than zero.")]
+    public decimal Amount { get; set; }
+
+    [StringLength(50)]
+    public string PaymentMethod { get; set; } = "UPI"; // CreditCard, DebitCard, UPI, NetBanking, Cash
+
+    public bool SimulateFailure { get; set; } = false; // Toggle to test failed payment handling
+}
+
 public class PaymentResponseDto
 {
     public int PaymentId { get; set; }

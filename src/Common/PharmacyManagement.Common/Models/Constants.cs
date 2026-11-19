@@ -12,13 +12,15 @@ public static class OrderStatuses
     public const string Pending = "Pending";
     public const string Verified = "Verified";
     public const string PickedUp = "PickedUp";
+    public const string Cancelled = "Cancelled";
 
     public static readonly HashSet<string> ValidStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         Cart,
         Pending,
         Verified,
-        PickedUp
+        PickedUp,
+        Cancelled
     };
 }
 

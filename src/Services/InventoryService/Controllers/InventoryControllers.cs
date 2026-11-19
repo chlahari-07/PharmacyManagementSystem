@@ -29,7 +29,7 @@ public class DrugsController : ControllerBase
     }
 
     /// <summary>
-    /// View details of a specific drug by ID
+    /// View details of a specific drug by ID (Admin and Doctor)
     /// </summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ApiResponse<DrugDto>), StatusCodes.Status200OK)]
@@ -38,6 +38,41 @@ public class DrugsController : ControllerBase
     {
         var result = await _drugService.GetDrugByIdAsync(id);
         if (!result.Success) return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Low Stock Monitoring: View medicines whose stock is below the minimum stock level (Admin only)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Admin)]
+    [HttpGet("low-stock")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<DrugDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLowStockDrugs()
+    {
+        var result = await _drugService.GetLowStockDrugsAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Expired Drug Report: View medicines that have passed their expiry date (Admin only)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Admin)]
+    [HttpGet("expired")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<DrugDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetExpiredDrugs()
+    {
+        var result = await _drugService.GetExpiredDrugsAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Search drugs by name or category (Admin and Doctor)
+    /// </summary>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<DrugDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SearchDrugs([FromQuery] string? query, [FromQuery] string? category)
+    {
+        var result = await _drugService.SearchDrugsAsync(query, category);
         return Ok(result);
     }
 

@@ -8,14 +8,17 @@ namespace OrderService.Services;
 public interface IOrderService
 {
     Task<ApiResponse<OrderResponseDto>> CreateOrderAsync(int doctorId, CreateOrderDto dto);
+    Task<ApiResponse<OrderResponseDto>> AddToCartAsync(int doctorId, AddToCartDto dto);
+    Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetCartAsync(int doctorId);
     Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetMyOrdersAsync(int doctorId);
     Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetAllOrdersAsync();
     Task<ApiResponse<OrderResponseDto>> GetOrderByIdAsync(int orderId);
     Task<ApiResponse<OrderResponseDto>> VerifyOrderAsync(int orderId);
     Task<ApiResponse<OrderResponseDto>> MarkOrderAsPickedUpAsync(int orderId);
     Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetPickedUpOrdersAsync();
+    Task<ApiResponse<OrderResponseDto>> CancelOrderAsync(int orderId);
     Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(int orderId, string status);
-    Task<ApiResponse<bool>> ValidateOrderAsync(int orderId);
+    Task<ApiResponse<ValidateOrderResultDto>> ValidateOrderAsync(int orderId);
 }
 
 public class OrderServiceClass : IOrderService
@@ -74,6 +77,72 @@ public class OrderServiceClass : IOrderService
         return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(created), "Order placed successfully.");
     }
 
+    public async Task<ApiResponse<OrderResponseDto>> AddToCartAsync(int doctorId, AddToCartDto dto)
+    {
+        if (dto.Items == null || !dto.Items.Any())
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Cart must contain at least one drug item.");
+        }
+
+        // Check if there is an existing Cart order for this doctor
+        var doctorOrders = await _orderRepository.GetOrdersByDoctorIdAsync(doctorId);
+        var existingCart = doctorOrders.FirstOrDefault(o => o.Status == OrderStatuses.Cart);
+
+        if (existingCart != null)
+        {
+            // Add new items to existing cart
+            foreach (var item in dto.Items)
+            {
+                var existingItem = existingCart.OrderItems.FirstOrDefault(oi => oi.DrugId == item.DrugId);
+                if (existingItem != null)
+                {
+                    existingItem.Quantity += item.Quantity;
+                }
+                else
+                {
+                    existingCart.OrderItems.Add(new OrderItem
+                    {
+                        OrderId = existingCart.OrderId,
+                        DrugId = item.DrugId,
+                        DrugName = item.DrugName.Trim(),
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice
+                    });
+                }
+            }
+
+            existingCart.TotalAmount = existingCart.OrderItems.Sum(i => i.Quantity * i.UnitPrice);
+            await _orderRepository.UpdateOrderAsync(existingCart);
+            return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(existingCart), "Drug added to existing cart.");
+        }
+
+        // Create new Cart order
+        var cartOrder = new Order
+        {
+            DoctorID = doctorId,
+            OrderDate = DateTime.UtcNow,
+            TotalAmount = dto.Items.Sum(i => i.Quantity * i.UnitPrice),
+            Status = OrderStatuses.Cart,
+            OrderItems = dto.Items.Select(i => new OrderItem
+            {
+                DrugId = i.DrugId,
+                DrugName = i.DrugName.Trim(),
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice
+            }).ToList()
+        };
+
+        var created = await _orderRepository.CreateOrderAsync(cartOrder);
+        return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(created), "Drug added to new cart.");
+    }
+
+    public async Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetCartAsync(int doctorId)
+    {
+        var orders = await _orderRepository.GetOrdersByDoctorIdAsync(doctorId);
+        var cartOrders = orders.Where(o => o.Status == OrderStatuses.Cart).Select(MapToDto);
+        return ApiResponse<IEnumerable<OrderResponseDto>>.SuccessResult(cartOrders, "Doctor cart items retrieved.");
+    }
+
     public async Task<ApiResponse<IEnumerable<OrderResponseDto>>> GetMyOrdersAsync(int doctorId)
     {
         var orders = await _orderRepository.GetOrdersByDoctorIdAsync(doctorId);
@@ -111,6 +180,11 @@ public class OrderServiceClass : IOrderService
             return ApiResponse<OrderResponseDto>.FailureResult("Order has already been picked up and cannot be reverified.");
         }
 
+        if (order.Status == OrderStatuses.Cancelled)
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Cancelled orders cannot be verified.");
+        }
+
         order.Status = OrderStatuses.Verified;
         await _orderRepository.UpdateOrderAsync(order);
 
@@ -144,11 +218,30 @@ public class OrderServiceClass : IOrderService
         return ApiResponse<IEnumerable<OrderResponseDto>>.SuccessResult(dtos, "Picked up orders retrieved successfully.");
     }
 
+    public async Task<ApiResponse<OrderResponseDto>> CancelOrderAsync(int orderId)
+    {
+        var order = await _orderRepository.GetOrderByIdAsync(orderId);
+        if (order == null)
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult($"Order with ID {orderId} not found.");
+        }
+
+        if (order.Status == OrderStatuses.PickedUp)
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Cannot cancel an order that has already been picked up.");
+        }
+
+        order.Status = OrderStatuses.Cancelled;
+        await _orderRepository.UpdateOrderAsync(order);
+
+        return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(order), "Order cancelled successfully.");
+    }
+
     public async Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(int orderId, string status)
     {
         if (!OrderStatuses.ValidStatuses.Contains(status))
         {
-            return ApiResponse<OrderResponseDto>.FailureResult($"Invalid order status '{status}'. Valid: Cart, Pending, Verified, PickedUp.");
+            return ApiResponse<OrderResponseDto>.FailureResult($"Invalid order status '{status}'. Valid: Cart, Pending, Verified, PickedUp, Cancelled.");
         }
 
         var order = await _orderRepository.GetOrderByIdAsync(orderId);
@@ -163,16 +256,33 @@ public class OrderServiceClass : IOrderService
         return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(order), $"Order status updated to {status}.");
     }
 
-    public async Task<ApiResponse<bool>> ValidateOrderAsync(int orderId)
+    public async Task<ApiResponse<ValidateOrderResultDto>> ValidateOrderAsync(int orderId)
     {
         var order = await _orderRepository.GetOrderByIdAsync(orderId);
         if (order == null)
         {
-            return ApiResponse<bool>.FailureResult($"Order {orderId} does not exist.");
+            return ApiResponse<ValidateOrderResultDto>.FailureResult($"Order {orderId} does not exist.");
         }
 
-        bool isValid = order.TotalAmount > 0 && order.OrderItems.Any() && order.DoctorID > 0;
-        return ApiResponse<bool>.SuccessResult(isValid, isValid ? "Order is valid." : "Order validation failed.");
+        bool hasItems = order.OrderItems.Any();
+        bool hasValidAmount = order.TotalAmount > 0;
+        bool hasValidDoctor = order.DoctorID > 0;
+        bool notCancelled = order.Status != OrderStatuses.Cancelled;
+        bool isValid = hasItems && hasValidAmount && hasValidDoctor && notCancelled;
+
+        var result = new ValidateOrderResultDto
+        {
+            OrderId = order.OrderId,
+            IsValid = isValid,
+            CurrentStatus = order.Status,
+            TotalAmount = order.TotalAmount,
+            ItemCount = order.OrderItems.Count,
+            Message = isValid
+                ? "Order is valid and ready for admin verification."
+                : "Order validation failed: missing items, non-positive amount, or invalid doctor reference."
+        };
+
+        return ApiResponse<ValidateOrderResultDto>.SuccessResult(result, result.Message);
     }
 
     private static OrderResponseDto MapToDto(Order order) => new()

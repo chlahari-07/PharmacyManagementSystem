@@ -31,6 +31,15 @@ public class CreateOrderDto
     public string Status { get; set; } = "Pending"; // "Cart" or "Pending"
 }
 
+public class AddToCartDto
+{
+    public int? DoctorId { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "At least one drug item must be added to cart.")]
+    public List<CreateOrderItemDto> Items { get; set; } = new();
+}
+
 public class OrderItemResponseDto
 {
     public int OrderItemId { get; set; }
@@ -55,8 +64,18 @@ public class OrderResponseDto
 public class UpdateOrderStatusDto
 {
     [Required]
-    [RegularExpression("^(Cart|Pending|Verified|PickedUp)$", ErrorMessage = "Status must be Cart, Pending, Verified, or PickedUp.")]
+    [RegularExpression("^(Cart|Pending|Verified|PickedUp|Cancelled)$", ErrorMessage = "Status must be Cart, Pending, Verified, PickedUp, or Cancelled.")]
     public string Status { get; set; } = string.Empty;
+}
+
+public class ValidateOrderResultDto
+{
+    public int OrderId { get; set; }
+    public bool IsValid { get; set; }
+    public string CurrentStatus { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public int ItemCount { get; set; }
+    public string Message { get; set; } = string.Empty;
 }
 
 public class InterServiceDeductStockItem

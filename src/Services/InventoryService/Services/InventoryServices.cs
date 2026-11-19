@@ -9,6 +9,9 @@ public interface IDrugService
 {
     Task<ApiResponse<IEnumerable<DrugDto>>> GetAllDrugsAsync(bool availableOnly = false);
     Task<ApiResponse<DrugDto>> GetDrugByIdAsync(int drugId);
+    Task<ApiResponse<IEnumerable<DrugDto>>> GetLowStockDrugsAsync();
+    Task<ApiResponse<IEnumerable<DrugDto>>> GetExpiredDrugsAsync();
+    Task<ApiResponse<IEnumerable<DrugDto>>> SearchDrugsAsync(string? query, string? category);
     Task<ApiResponse<DrugDto>> CreateDrugAsync(CreateDrugDto dto);
     Task<ApiResponse<DrugDto>> UpdateDrugAsync(int drugId, UpdateDrugDto dto);
     Task<ApiResponse<bool>> DeleteDrugAsync(int drugId);
@@ -42,16 +45,42 @@ public class DrugService : IDrugService
         return ApiResponse<DrugDto>.SuccessResult(MapToDto(drug));
     }
 
+    public async Task<ApiResponse<IEnumerable<DrugDto>>> GetLowStockDrugsAsync()
+    {
+        var drugs = await _drugRepository.GetLowStockAsync();
+        var dtos = drugs.Select(MapToDto);
+        return ApiResponse<IEnumerable<DrugDto>>.SuccessResult(dtos, "Low stock medicines retrieved successfully.");
+    }
+
+    public async Task<ApiResponse<IEnumerable<DrugDto>>> GetExpiredDrugsAsync()
+    {
+        var drugs = await _drugRepository.GetExpiredAsync();
+        var dtos = drugs.Select(MapToDto);
+        return ApiResponse<IEnumerable<DrugDto>>.SuccessResult(dtos, "Expired medicines retrieved successfully.");
+    }
+
+    public async Task<ApiResponse<IEnumerable<DrugDto>>> SearchDrugsAsync(string? query, string? category)
+    {
+        var drugs = await _drugRepository.SearchAsync(query, category);
+        var dtos = drugs.Select(MapToDto);
+        return ApiResponse<IEnumerable<DrugDto>>.SuccessResult(dtos, "Matching drugs retrieved successfully.");
+    }
+
     public async Task<ApiResponse<DrugDto>> CreateDrugAsync(CreateDrugDto dto)
     {
+        var drugName = !string.IsNullOrWhiteSpace(dto.DrugName) ? dto.DrugName.Trim() : dto.Name?.Trim() ?? string.Empty;
+
         var drug = new Drug
         {
-            Name = dto.Name.Trim(),
+            DrugName = drugName,
             Description = dto.Description?.Trim(),
+            Category = dto.Category?.Trim(),
             Price = dto.Price,
             ExpiryDate = dto.ExpiryDate,
             Quantity = dto.Quantity,
-            IsAvailable = dto.IsAvailable && dto.Quantity > 0
+            MinimumStockQuantity = dto.MinimumStockQuantity > 0 ? dto.MinimumStockQuantity : 20,
+            IsAvailable = dto.IsAvailable && dto.Quantity > 0,
+            CreatedDate = DateTime.UtcNow
         };
 
         var created = await _drugRepository.AddAsync(drug);
@@ -66,12 +95,17 @@ public class DrugService : IDrugService
             return ApiResponse<DrugDto>.FailureResult($"Drug with ID {drugId} was not found.");
         }
 
-        drug.Name = dto.Name.Trim();
+        var drugName = !string.IsNullOrWhiteSpace(dto.DrugName) ? dto.DrugName.Trim() : dto.Name?.Trim() ?? drug.DrugName;
+
+        drug.DrugName = drugName;
         drug.Description = dto.Description?.Trim();
+        drug.Category = dto.Category?.Trim();
         drug.Price = dto.Price;
         drug.ExpiryDate = dto.ExpiryDate;
         drug.Quantity = dto.Quantity;
+        drug.MinimumStockQuantity = dto.MinimumStockQuantity > 0 ? dto.MinimumStockQuantity : drug.MinimumStockQuantity;
         drug.IsAvailable = dto.IsAvailable && dto.Quantity > 0;
+        drug.UpdatedDate = DateTime.UtcNow;
 
         await _drugRepository.UpdateAsync(drug);
         return ApiResponse<DrugDto>.SuccessResult(MapToDto(drug), "Drug updated successfully.");
@@ -100,7 +134,7 @@ public class DrugService : IDrugService
                 result.OutOfStockItems.Add(
                     drug == null
                         ? $"Drug ID {item.DrugId} does not exist."
-                        : $"{drug.Name}: requested {item.Quantity}, only {drug.Quantity} in stock (Available: {drug.IsAvailable}).");
+                        : $"{drug.DrugName}: requested {item.Quantity}, only {drug.Quantity} in stock (Available: {drug.IsAvailable}).");
             }
         }
 
@@ -128,6 +162,7 @@ public class DrugService : IDrugService
                     drug.Quantity = 0;
                     drug.IsAvailable = false;
                 }
+                drug.UpdatedDate = DateTime.UtcNow;
                 await _drugRepository.UpdateAsync(drug);
             }
         }
@@ -138,11 +173,13 @@ public class DrugService : IDrugService
     private static DrugDto MapToDto(Drug drug) => new()
     {
         DrugId = drug.DrugId,
-        Name = drug.Name,
+        DrugName = drug.DrugName,
         Description = drug.Description,
+        Category = drug.Category,
         Price = drug.Price,
         ExpiryDate = drug.ExpiryDate,
         Quantity = drug.Quantity,
+        MinimumStockQuantity = drug.MinimumStockQuantity,
         IsAvailable = drug.IsAvailable
     };
 }
@@ -264,10 +301,12 @@ public class InventoryServiceClass : IInventoryService
             SupplierId = i.SupplierId,
             SupplierName = i.Supplier?.SupplierName ?? "Unknown",
             DrugId = i.DrugId,
-            DrugName = i.Drug?.Name ?? "Unknown",
+            DrugName = i.Drug?.DrugName ?? "Unknown",
             PurchasePrice = i.PurchasePrice,
-            QuantityAdded = i.QuantityAdded,
-            StockReceivedDate = i.StockReceivedDate
+            QuantitySupplied = i.QuantitySupplied,
+            SupplyDate = i.SupplyDate,
+            BatchNumber = i.BatchNumber,
+            Notes = i.Notes
         });
 
         return ApiResponse<IEnumerable<InventoryDto>>.SuccessResult(dtos, "Inventory records retrieved.");
@@ -287,23 +326,32 @@ public class InventoryServiceClass : IInventoryService
             return ApiResponse<InventoryDto>.FailureResult($"Drug ID {dto.DrugId} not found.");
         }
 
+        int quantity = dto.QuantitySupplied > 0 ? dto.QuantitySupplied : (dto.QuantityAdded ?? 0);
+        if (quantity <= 0)
+        {
+            return ApiResponse<InventoryDto>.FailureResult("Quantity supplied must be greater than zero.");
+        }
+
         var inventory = new Inventory
         {
             SupplierId = dto.SupplierId,
             DrugId = dto.DrugId,
             PurchasePrice = dto.PurchasePrice,
-            QuantityAdded = dto.QuantityAdded,
-            StockReceivedDate = DateTime.UtcNow
+            QuantitySupplied = quantity,
+            SupplyDate = DateTime.UtcNow,
+            BatchNumber = dto.BatchNumber?.Trim(),
+            Notes = dto.Notes?.Trim()
         };
 
         var created = await _inventoryRepository.AddAsync(inventory);
 
         // Update drug stock & availability
-        drug.Quantity += dto.QuantityAdded;
+        drug.Quantity += quantity;
         if (drug.Quantity > 0 && drug.ExpiryDate > DateTime.UtcNow)
         {
             drug.IsAvailable = true;
         }
+        drug.UpdatedDate = DateTime.UtcNow;
         await _drugRepository.UpdateAsync(drug);
 
         var responseDto = new InventoryDto
@@ -312,10 +360,12 @@ public class InventoryServiceClass : IInventoryService
             SupplierId = created.SupplierId,
             SupplierName = supplier.SupplierName,
             DrugId = created.DrugId,
-            DrugName = drug.Name,
+            DrugName = drug.DrugName,
             PurchasePrice = created.PurchasePrice,
-            QuantityAdded = created.QuantityAdded,
-            StockReceivedDate = created.StockReceivedDate
+            QuantitySupplied = created.QuantitySupplied,
+            SupplyDate = created.SupplyDate,
+            BatchNumber = created.BatchNumber,
+            Notes = created.Notes
         };
 
         return ApiResponse<InventoryDto>.SuccessResult(responseDto, "Stock added to inventory and drug quantity updated.");

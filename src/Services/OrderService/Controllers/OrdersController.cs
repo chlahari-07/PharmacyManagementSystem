@@ -34,18 +34,7 @@ public class OrdersController : ControllerBase
             return BadRequest(ApiResponse<OrderResponseDto>.FailureResult("Validation error", errors));
         }
 
-        // Extract Doctor ID from JWT claims
-        int doctorId = 0;
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out int parsedId))
-        {
-            doctorId = parsedId;
-        }
-        else if (dto.DoctorId.HasValue)
-        {
-            doctorId = dto.DoctorId.Value;
-        }
-
+        int doctorId = ExtractDoctorId(dto.DoctorId);
         if (doctorId <= 0)
         {
             return BadRequest(ApiResponse<OrderResponseDto>.FailureResult("Doctor ID could not be identified from authentication token."));
@@ -58,20 +47,79 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
-    /// View orders placed by the current Doctor
+    /// Add drugs to cart (Doctor user)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Doctor)]
+    [HttpPost("cart")]
+    [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+            return BadRequest(ApiResponse<OrderResponseDto>.FailureResult("Validation error", errors));
+        }
+
+        int doctorId = ExtractDoctorId(dto.DoctorId);
+        if (doctorId <= 0)
+        {
+            return BadRequest(ApiResponse<OrderResponseDto>.FailureResult("Doctor ID could not be identified from authentication token."));
+        }
+
+        var result = await _orderService.AddToCartAsync(doctorId, dto);
+        if (!result.Success) return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// View active cart for doctor (Doctor user)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Doctor)]
+    [HttpGet("cart")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<OrderResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCart()
+    {
+        int doctorId = ExtractDoctorId(null);
+        if (doctorId <= 0)
+        {
+            return Unauthorized(ApiResponse<IEnumerable<OrderResponseDto>>.FailureResult("Unauthorized doctor token."));
+        }
+
+        var result = await _orderService.GetCartAsync(doctorId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// View order history placed by the current Doctor (Doctor user)
     /// </summary>
     [Authorize(Roles = UserRoles.Doctor)]
     [HttpGet("my-orders")]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<OrderResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyOrders()
     {
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int doctorId))
+        int doctorId = ExtractDoctorId(null);
+        if (doctorId <= 0)
         {
             return Unauthorized(ApiResponse<IEnumerable<OrderResponseDto>>.FailureResult("Unauthorized doctor token."));
         }
 
         var result = await _orderService.GetMyOrdersAsync(doctorId);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Track order status and details by Order ID (Doctor and Admin)
+    /// </summary>
+    [Authorize]
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrderById(int id)
+    {
+        var result = await _orderService.GetOrderByIdAsync(id);
+        if (!result.Success) return NotFound(result);
         return Ok(result);
     }
 
@@ -88,25 +136,11 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
-    /// View order details by Order ID (Admin or Doctor)
-    /// </summary>
-    [Authorize]
-    [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetOrderById(int id)
-    {
-        var result = await _orderService.GetOrderByIdAsync(id);
-        if (!result.Success) return NotFound(result);
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// Check if order is valid (Admin only)
+    /// Check if order is valid before verification (Admin only)
     /// </summary>
     [Authorize(Roles = UserRoles.Admin)]
     [HttpGet("{id:int}/validate")]
-    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ValidateOrderResultDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ValidateOrder(int id)
     {
@@ -144,7 +178,7 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
-    /// View all PickedUp orders (Admin only)
+    /// View all PickedUp orders in the pickedUp section (Admin only)
     /// </summary>
     [Authorize(Roles = UserRoles.Admin)]
     [HttpGet("picked-up")]
@@ -152,6 +186,20 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> GetPickedUpOrders()
     {
         var result = await _orderService.GetPickedUpOrdersAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cancel an order (Doctor or Admin)
+    /// </summary>
+    [Authorize]
+    [HttpPut("{id:int}/cancel")]
+    [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CancelOrder(int id)
+    {
+        var result = await _orderService.CancelOrderAsync(id);
+        if (!result.Success) return BadRequest(result);
         return Ok(result);
     }
 
@@ -167,5 +215,15 @@ public class OrdersController : ControllerBase
         var result = await _orderService.UpdateOrderStatusAsync(id, dto.Status);
         if (!result.Success) return BadRequest(result);
         return Ok(result);
+    }
+
+    private int ExtractDoctorId(int? fallbackId)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out int parsedId))
+        {
+            return parsedId;
+        }
+        return fallbackId ?? 0;
     }
 }

@@ -21,9 +21,12 @@ public class InventoryDbContext : DbContext
         modelBuilder.Entity<Drug>(entity =>
         {
             entity.HasKey(d => d.DrugId);
-            entity.Property(d => d.Name).IsRequired().HasMaxLength(150);
+            entity.Property(d => d.DrugName).IsRequired().HasMaxLength(150);
             entity.Property(d => d.Price).HasPrecision(18, 2);
+            entity.Property(d => d.MinimumStockQuantity).HasDefaultValue(20);
             entity.Property(d => d.IsAvailable).HasDefaultValue(true);
+            entity.Ignore(d => d.Name);
+            entity.Ignore(d => d.DrugPrice);
         });
 
         // Supplier entity configuration
@@ -41,6 +44,8 @@ public class InventoryDbContext : DbContext
         {
             entity.HasKey(i => i.InventoryId);
             entity.Property(i => i.PurchasePrice).HasPrecision(18, 2);
+            entity.Ignore(i => i.QuantityAdded);
+            entity.Ignore(i => i.StockReceivedDate);
 
             // Supplier to Inventory (1:M)
             entity.HasOne(i => i.Supplier)

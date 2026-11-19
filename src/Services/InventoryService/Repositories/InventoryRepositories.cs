@@ -8,6 +8,9 @@ public interface IDrugRepository
 {
     Task<IEnumerable<Drug>> GetAllAsync(bool availableOnly = false);
     Task<Drug?> GetByIdAsync(int drugId);
+    Task<IEnumerable<Drug>> GetLowStockAsync();
+    Task<IEnumerable<Drug>> GetExpiredAsync();
+    Task<IEnumerable<Drug>> SearchAsync(string? query, string? category);
     Task<Drug> AddAsync(Drug drug);
     Task UpdateAsync(Drug drug);
     Task<bool> DeleteAsync(int drugId);
@@ -30,12 +33,49 @@ public class DrugRepository : IDrugRepository
         {
             query = query.Where(d => d.IsAvailable && d.Quantity > 0 && d.ExpiryDate > DateTime.UtcNow);
         }
-        return await query.OrderBy(d => d.Name).ToListAsync();
+        return await query.OrderBy(d => d.DrugName).ToListAsync();
     }
 
     public async Task<Drug?> GetByIdAsync(int drugId)
     {
         return await _context.Drugs.FirstOrDefaultAsync(d => d.DrugId == drugId);
+    }
+
+    public async Task<IEnumerable<Drug>> GetLowStockAsync()
+    {
+        return await _context.Drugs
+            .AsNoTracking()
+            .Where(d => d.Quantity <= d.MinimumStockQuantity)
+            .OrderBy(d => d.Quantity)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Drug>> GetExpiredAsync()
+    {
+        return await _context.Drugs
+            .AsNoTracking()
+            .Where(d => d.ExpiryDate < DateTime.UtcNow)
+            .OrderBy(d => d.ExpiryDate)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Drug>> SearchAsync(string? query, string? category)
+    {
+        IQueryable<Drug> q = _context.Drugs.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var trimmed = query.Trim();
+            q = q.Where(d => d.DrugName.Contains(trimmed) || (d.Description != null && d.Description.Contains(trimmed)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            var trimmedCat = category.Trim();
+            q = q.Where(d => d.Category != null && d.Category.Contains(trimmedCat));
+        }
+
+        return await q.OrderBy(d => d.DrugName).ToListAsync();
     }
 
     public async Task<Drug> AddAsync(Drug drug)
@@ -147,7 +187,7 @@ public class InventoryRepository : IInventoryRepository
             .Include(i => i.Supplier)
             .Include(i => i.Drug)
             .AsNoTracking()
-            .OrderByDescending(i => i.StockReceivedDate)
+            .OrderByDescending(i => i.SupplyDate)
             .ToListAsync();
     }
 

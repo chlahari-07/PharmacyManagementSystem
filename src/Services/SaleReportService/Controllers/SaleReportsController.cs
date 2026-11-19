@@ -93,4 +93,40 @@ public class SaleReportsController : ControllerBase
         if (!result.Success) return NotFound(result);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Dashboard Analytics: View overall statistics such as total orders, revenue, and profit (Admin only)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Admin)]
+    [HttpGet("analytics/dashboard")]
+    [ProducesResponseType(typeof(ApiResponse<DashboardAnalyticsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDashboardAnalytics()
+    {
+        var result = await _saleReportService.GetDashboardAnalyticsAsync();
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Profit Analysis: View profit generated based on purchase price and selling price (Admin only)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Admin)]
+    [HttpGet("analytics/profit")]
+    [ProducesResponseType(typeof(ApiResponse<ProfitAnalysisDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProfitAnalysis([FromQuery] string? period = null)
+    {
+        var result = await _saleReportService.GetProfitAnalysisAsync(period);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Top Selling Drugs Report: View drugs with the highest sales quantity (Admin only)
+    /// </summary>
+    [Authorize(Roles = UserRoles.Admin)]
+    [HttpGet("analytics/top-selling")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<TopSellingDrugDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTopSellingDrugs([FromQuery] int top = 5)
+    {
+        var result = await _saleReportService.GetTopSellingDrugsAsync(top);
+        return Ok(result);
+    }
 }

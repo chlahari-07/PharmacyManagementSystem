@@ -1,6 +1,7 @@
 -- =========================================================================================
 -- PHARMACY MANAGEMENT SYSTEM - COMPLETE SQL SERVER INITIALIZATION SCRIPT
 -- 5 Microservices Databases with Tables, Primary Keys, Foreign Keys, Indexes & Seed Data
+-- Aligned with Low-Level Design (LLD) Specifications and Prompt Requirements
 -- =========================================================================================
 
 -- =========================================================================================
@@ -33,8 +34,8 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Users_Role ON [dbo].[Users] ([Role] ASC);
 
     -- Seed Initial Admin and Doctor Users
-    -- Default Password for Admin: 'Admin@123'
-    -- Default Password for Doctor: 'Doctor@123'
+    -- Password for Admin: 'Admin@123'
+    -- Password for Doctor: 'Doctor@123'
     INSERT INTO [dbo].[Users] ([Name], [Email], [PhoneNumber], [PasswordHash], [Role], [IsActive], [CreatedDate])
     VALUES 
     (N'System Administrator', N'admin@pharmacy.com', N'+1234567890', 
@@ -60,17 +61,23 @@ GO
 IF OBJECT_ID(N'dbo.Drugs', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[Drugs] (
-        [DrugId]      INT IDENTITY(1,1) NOT NULL,
-        [Name]        NVARCHAR(150)     NOT NULL,
-        [Description] NVARCHAR(500)     NULL,
-        [Price]       DECIMAL(18,2)     NOT NULL, -- Selling Price
-        [ExpiryDate]  DATETIME2(7)      NOT NULL,
-        [Quantity]    INT               NOT NULL,
-        [IsAvailable] BIT               NOT NULL CONSTRAINT DF_Drugs_IsAvailable DEFAULT (1),
+        [DrugId]               INT IDENTITY(1,1) NOT NULL,
+        [DrugName]             NVARCHAR(150)     NOT NULL,
+        [Description]          NVARCHAR(500)     NULL,
+        [Category]             NVARCHAR(100)     NULL,
+        [Price]                DECIMAL(18,2)     NOT NULL, -- Selling Price
+        [ExpiryDate]           DATETIME2(7)      NOT NULL,
+        [Quantity]             INT               NOT NULL,
+        [MinimumStockQuantity] INT               NOT NULL CONSTRAINT DF_Drugs_MinimumStockQuantity DEFAULT (20),
+        [IsAvailable]          BIT               NOT NULL CONSTRAINT DF_Drugs_IsAvailable DEFAULT (1),
+        [CreatedDate]          DATETIME2(7)      NOT NULL CONSTRAINT DF_Drugs_CreatedDate DEFAULT (SYSUTCDATETIME()),
+        [UpdatedDate]          DATETIME2(7)      NULL,
         CONSTRAINT PK_Drugs PRIMARY KEY CLUSTERED ([DrugId] ASC)
     );
 
     CREATE NONCLUSTERED INDEX IX_Drugs_IsAvailable ON [dbo].[Drugs] ([IsAvailable], [Quantity]);
+    CREATE NONCLUSTERED INDEX IX_Drugs_LowStock ON [dbo].[Drugs] ([Quantity], [MinimumStockQuantity]);
+    CREATE NONCLUSTERED INDEX IX_Drugs_ExpiryDate ON [dbo].[Drugs] ([ExpiryDate] ASC);
 END
 GO
 
@@ -93,12 +100,14 @@ GO
 IF OBJECT_ID(N'dbo.Inventory', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[Inventory] (
-        [InventoryId]       INT IDENTITY(1,1) NOT NULL,
-        [SupplierId]        INT               NOT NULL,
-        [DrugId]            INT               NOT NULL,
-        [PurchasePrice]     DECIMAL(18,2)     NOT NULL,
-        [QuantityAdded]     INT               NOT NULL,
-        [StockReceivedDate] DATETIME2(7)      NOT NULL CONSTRAINT DF_Inventory_StockReceivedDate DEFAULT (SYSUTCDATETIME()),
+        [InventoryId]      INT IDENTITY(1,1) NOT NULL,
+        [SupplierId]       INT               NOT NULL,
+        [DrugId]           INT               NOT NULL,
+        [PurchasePrice]    DECIMAL(18,2)     NOT NULL,
+        [QuantitySupplied] INT               NOT NULL,
+        [SupplyDate]       DATETIME2(7)      NOT NULL CONSTRAINT DF_Inventory_SupplyDate DEFAULT (SYSUTCDATETIME()),
+        [BatchNumber]      NVARCHAR(100)     NULL,
+        [Notes]            NVARCHAR(500)     NULL,
         CONSTRAINT PK_Inventory PRIMARY KEY CLUSTERED ([InventoryId] ASC),
         CONSTRAINT FK_Inventory_Suppliers FOREIGN KEY ([SupplierId]) REFERENCES [dbo].[Suppliers] ([SupplierId]),
         CONSTRAINT FK_Inventory_Drugs FOREIGN KEY ([DrugId]) REFERENCES [dbo].[Drugs] ([DrugId])
@@ -114,20 +123,22 @@ BEGIN
     (N'BioCare Health Supplies', N'sales@biocare.com', N'+1555987654', N'742 Healthcare Parkway, Boston, MA');
 
     -- Seed Drugs
-    INSERT INTO [dbo].[Drugs] ([Name], [Description], [Price], [ExpiryDate], [Quantity], [IsAvailable])
+    INSERT INTO [dbo].[Drugs] ([DrugName], [Description], [Category], [Price], [ExpiryDate], [Quantity], [MinimumStockQuantity], [IsAvailable])
     VALUES 
-    (N'Paracetamol 500mg', N'Pain reliever and a fever reducer (Acetaminophen)', 9.99, DATEADD(YEAR, 2, SYSUTCDATETIME()), 200, 1),
-    (N'Amoxicillin 250mg', N'Broad-spectrum penicillin antibiotic', 18.50, DATEADD(YEAR, 1, SYSUTCDATETIME()), 150, 1),
-    (N'Ibuprofen 400mg', N'Nonsteroidal anti-inflammatory drug (NSAID)', 12.00, DATEADD(MONTH, 18, SYSUTCDATETIME()), 300, 1),
-    (N'Metformin 500mg', N'Oral diabetes medicine for blood sugar control', 15.75, DATEADD(YEAR, 2, SYSUTCDATETIME()), 120, 1);
+    (N'Paracetamol 500mg', N'Pain reliever and a fever reducer (Acetaminophen)', N'Analgesics', 9.99, DATEADD(YEAR, 2, SYSUTCDATETIME()), 200, 20, 1),
+    (N'Amoxicillin 250mg', N'Broad-spectrum penicillin antibiotic', N'Antibiotics', 18.50, DATEADD(YEAR, 1, SYSUTCDATETIME()), 150, 25, 1),
+    (N'Ibuprofen 400mg', N'Nonsteroidal anti-inflammatory drug (NSAID)', N'Analgesics', 12.00, DATEADD(MONTH, 18, SYSUTCDATETIME()), 300, 30, 1),
+    (N'Metformin 500mg', N'Oral diabetes medicine for blood sugar control', N'Antidiabetic', 15.75, DATEADD(YEAR, 2, SYSUTCDATETIME()), 120, 20, 1),
+    (N'Azithromycin 500mg', N'Macrolide antibiotic for bacterial infections', N'Antibiotics', 24.50, DATEADD(MONTH, 8, SYSUTCDATETIME()), 8, 20, 1),
+    (N'Cough Syrup Dx 100ml', N'Antitussive cough suppressant', N'Cough & Cold', 8.25, DATEADD(DAY, -15, SYSUTCDATETIME()), 15, 10, 0);
 
     -- Seed Inventory Entries
-    INSERT INTO [dbo].[Inventory] ([SupplierId], [DrugId], [PurchasePrice], [QuantityAdded], [StockReceivedDate])
+    INSERT INTO [dbo].[Inventory] ([SupplierId], [DrugId], [PurchasePrice], [QuantitySupplied], [SupplyDate], [BatchNumber], [Notes])
     VALUES 
-    (1, 1, 5.50, 200, DATEADD(DAY, -30, SYSUTCDATETIME())),
-    (1, 2, 11.00, 150, DATEADD(DAY, -20, SYSUTCDATETIME())),
-    (2, 3, 7.00, 300, DATEADD(DAY, -15, SYSUTCDATETIME())),
-    (2, 4, 9.20, 120, DATEADD(DAY, -10, SYSUTCDATETIME()));
+    (1, 1, 5.50, 200, DATEADD(DAY, -30, SYSUTCDATETIME()), N'BATCH-PCM-2026', N'Standard replenishment shipment'),
+    (1, 2, 11.00, 150, DATEADD(DAY, -20, SYSUTCDATETIME()), N'BATCH-AMX-2026', N'Antibiotic restocking'),
+    (2, 3, 7.00, 300, DATEADD(DAY, -15, SYSUTCDATETIME()), N'BATCH-IBU-2026', N'Anti-inflammatory stock'),
+    (2, 4, 9.20, 120, DATEADD(DAY, -10, SYSUTCDATETIME()), N'BATCH-MET-2026', N'Diabetes care shipment');
 END
 GO
 
@@ -152,7 +163,7 @@ BEGIN
         [DoctorID]    INT               NOT NULL, -- Logical FK from User table
         [OrderDate]   DATETIME2(7)      NOT NULL CONSTRAINT DF_Orders_OrderDate DEFAULT (SYSUTCDATETIME()),
         [TotalAmount] DECIMAL(18,2)     NOT NULL,
-        [Status]      NVARCHAR(20)      NOT NULL, -- Cart / Pending / Verified / PickedUp
+        [Status]      NVARCHAR(20)      NOT NULL, -- Cart / Pending / Verified / PickedUp / Cancelled
         CONSTRAINT PK_Orders PRIMARY KEY CLUSTERED ([OrderId] ASC)
     );
 

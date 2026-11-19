@@ -8,6 +8,7 @@ namespace PaymentService.Services;
 public interface IPaymentService
 {
     Task<ApiResponse<PaymentResponseDto>> ProcessPaymentAsync(ProcessPaymentDto dto);
+    Task<ApiResponse<PaymentResponseDto>> SimulatePaymentAsync(SimulatePaymentDto dto);
     Task<ApiResponse<PaymentResponseDto>> GetPaymentByOrderIdAsync(int orderId);
     Task<ApiResponse<PaymentResponseDto>> GetPaymentByIdAsync(int paymentId);
     Task<ApiResponse<IEnumerable<PaymentResponseDto>>> GetAllPaymentsAsync();
@@ -59,6 +60,47 @@ public class PaymentServiceClass : IPaymentService
 
         var created = await _paymentRepository.AddAsync(payment);
         return ApiResponse<PaymentResponseDto>.SuccessResult(MapToDto(created), "Payment processed successfully.");
+    }
+
+    public async Task<ApiResponse<PaymentResponseDto>> SimulatePaymentAsync(SimulatePaymentDto dto)
+    {
+        var existing = await _paymentRepository.GetByOrderIdAsync(dto.OrderId);
+        if (existing != null && existing.PaymentStatus == PaymentStatuses.Completed)
+        {
+            return ApiResponse<PaymentResponseDto>.FailureResult($"Order {dto.OrderId} has already been paid successfully.");
+        }
+
+        string status = dto.SimulateFailure ? PaymentStatuses.Failed : PaymentStatuses.Completed;
+        string txnRef = "SIM-TXN-" + Guid.NewGuid().ToString("N")[..10].ToUpper();
+
+        if (existing != null)
+        {
+            existing.Amount = dto.Amount;
+            existing.PaymentMethod = dto.PaymentMethod ?? "UPI";
+            existing.PaymentStatus = status;
+            existing.PaymentDate = DateTime.UtcNow;
+            existing.TransactionReference = txnRef;
+            await _paymentRepository.UpdateAsync(existing);
+
+            return ApiResponse<PaymentResponseDto>.SuccessResult(
+                MapToDto(existing),
+                dto.SimulateFailure ? "Payment simulation resulted in: FAILED" : "Payment simulation successful: COMPLETED");
+        }
+
+        var payment = new Payment
+        {
+            OrderId = dto.OrderId,
+            Amount = dto.Amount,
+            PaymentDate = DateTime.UtcNow,
+            PaymentMethod = dto.PaymentMethod ?? "UPI",
+            PaymentStatus = status,
+            TransactionReference = txnRef
+        };
+
+        var created = await _paymentRepository.AddAsync(payment);
+        return ApiResponse<PaymentResponseDto>.SuccessResult(
+            MapToDto(created),
+            dto.SimulateFailure ? "Payment simulation resulted in: FAILED" : "Payment simulation successful: COMPLETED");
     }
 
     public async Task<ApiResponse<PaymentResponseDto>> GetPaymentByOrderIdAsync(int orderId)

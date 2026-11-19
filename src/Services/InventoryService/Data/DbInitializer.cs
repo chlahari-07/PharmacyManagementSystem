@@ -47,45 +47,79 @@ public static class DbInitializer
         // Seed Drugs
         var drug1 = new Drug
         {
-            Name = "Paracetamol 500mg",
+            DrugName = "Paracetamol 500mg",
             Description = "Pain reliever and a fever reducer (Acetaminophen)",
+            Category = "Analgesics",
             Price = 9.99m,
             ExpiryDate = DateTime.UtcNow.AddYears(2),
             Quantity = 200,
+            MinimumStockQuantity = 20,
             IsAvailable = true
         };
 
         var drug2 = new Drug
         {
-            Name = "Amoxicillin 250mg",
+            DrugName = "Amoxicillin 250mg",
             Description = "Broad-spectrum penicillin antibiotic",
+            Category = "Antibiotics",
             Price = 18.50m,
             ExpiryDate = DateTime.UtcNow.AddYears(1),
             Quantity = 150,
+            MinimumStockQuantity = 25,
             IsAvailable = true
         };
 
         var drug3 = new Drug
         {
-            Name = "Ibuprofen 400mg",
+            DrugName = "Ibuprofen 400mg",
             Description = "Nonsteroidal anti-inflammatory drug (NSAID)",
+            Category = "Analgesics",
             Price = 12.00m,
             ExpiryDate = DateTime.UtcNow.AddMonths(18),
             Quantity = 300,
+            MinimumStockQuantity = 30,
             IsAvailable = true
         };
 
         var drug4 = new Drug
         {
-            Name = "Metformin 500mg",
+            DrugName = "Metformin 500mg",
             Description = "Oral diabetes medicine for blood sugar control",
+            Category = "Antidiabetic",
             Price = 15.75m,
             ExpiryDate = DateTime.UtcNow.AddYears(2),
             Quantity = 120,
+            MinimumStockQuantity = 20,
             IsAvailable = true
         };
 
-        context.Drugs.AddRange(drug1, drug2, drug3, drug4);
+        // Seed a low-stock drug for monitoring testing
+        var drug5 = new Drug
+        {
+            DrugName = "Azithromycin 500mg",
+            Description = "Macrolide antibiotic for bacterial infections",
+            Category = "Antibiotics",
+            Price = 24.50m,
+            ExpiryDate = DateTime.UtcNow.AddMonths(8),
+            Quantity = 8, // Low stock: 8 < MinimumStockQuantity (20)
+            MinimumStockQuantity = 20,
+            IsAvailable = true
+        };
+
+        // Seed an expired drug for expired report testing
+        var drug6 = new Drug
+        {
+            DrugName = "Cough Syrup Dx 100ml",
+            Description = "Antitussive cough suppressant",
+            Category = "Cough & Cold",
+            Price = 8.25m,
+            ExpiryDate = DateTime.UtcNow.AddDays(-15), // Expired 15 days ago
+            Quantity = 15,
+            MinimumStockQuantity = 10,
+            IsAvailable = false
+        };
+
+        context.Drugs.AddRange(drug1, drug2, drug3, drug4, drug5, drug6);
         await context.SaveChangesAsync();
 
         // Seed Inventory records
@@ -94,8 +128,10 @@ public static class DbInitializer
             SupplierId = supplier1.SupplierId,
             DrugId = drug1.DrugId,
             PurchasePrice = 5.50m,
-            QuantityAdded = 200,
-            StockReceivedDate = DateTime.UtcNow.AddDays(-30)
+            QuantitySupplied = 200,
+            SupplyDate = DateTime.UtcNow.AddDays(-30),
+            BatchNumber = "BATCH-PCM-2026",
+            Notes = "Standard replenishment shipment"
         };
 
         var inv2 = new Inventory
@@ -103,8 +139,10 @@ public static class DbInitializer
             SupplierId = supplier1.SupplierId,
             DrugId = drug2.DrugId,
             PurchasePrice = 11.00m,
-            QuantityAdded = 150,
-            StockReceivedDate = DateTime.UtcNow.AddDays(-20)
+            QuantitySupplied = 150,
+            SupplyDate = DateTime.UtcNow.AddDays(-20),
+            BatchNumber = "BATCH-AMX-2026",
+            Notes = "Antibiotic restocking"
         };
 
         var inv3 = new Inventory
@@ -112,8 +150,10 @@ public static class DbInitializer
             SupplierId = supplier2.SupplierId,
             DrugId = drug3.DrugId,
             PurchasePrice = 7.00m,
-            QuantityAdded = 300,
-            StockReceivedDate = DateTime.UtcNow.AddDays(-15)
+            QuantitySupplied = 300,
+            SupplyDate = DateTime.UtcNow.AddDays(-15),
+            BatchNumber = "BATCH-IBU-2026",
+            Notes = "Anti-inflammatory stock"
         };
 
         var inv4 = new Inventory
@@ -121,8 +161,10 @@ public static class DbInitializer
             SupplierId = supplier2.SupplierId,
             DrugId = drug4.DrugId,
             PurchasePrice = 9.20m,
-            QuantityAdded = 120,
-            StockReceivedDate = DateTime.UtcNow.AddDays(-10)
+            QuantitySupplied = 120,
+            SupplyDate = DateTime.UtcNow.AddDays(-10),
+            BatchNumber = "BATCH-MET-2026",
+            Notes = "Diabetes care shipment"
         };
 
         context.Inventories.AddRange(inv1, inv2, inv3, inv4);
