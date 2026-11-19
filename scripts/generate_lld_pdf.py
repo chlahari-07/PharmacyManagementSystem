@@ -440,180 +440,119 @@ def build_pdf_story(section_page_dict):
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 6.0 FLOW DIAGRAM
+    # 6.0 USE CASE DIAGRAM
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("6.0 Flow Diagram", style_h1, "sec_6"))
-    flow_img_path = os.path.join(DIAGRAMS_DIR, "04_Flow_Diagram.jpg")
-    if os.path.exists(flow_img_path):
-        story.append(Image(flow_img_path, width=440, height=475))
-        story.append(Paragraph("Figure 6.0 – Operational Flow Diagram", style_caption))
-
-    story.append(Paragraph("<b>Description</b>", style_body))
-    story.append(Paragraph(
-        "The flow diagram shows the operational steps for Admin and Doctor users. A user signs up or logs in and receives a JWT token. "
-        "Based on their role:<br/>"
-        "• Admins manage drugs, update supplier inventory, review doctor orders, verify orders, mark orders as picked up, and review sales reports.<br/>"
-        "• Doctors browse available medicines, add items to cart, place orders, and proceed to payment simulation.<br/>"
-        "If payment succeeds, the order is placed in Pending status for admin verification. "
-        "If payment fails, the system shows an error and releases any reserved medicine stock.",
-        style_body
-    ))
-    story.append(PageBreak())
-
-    # --------------------------------------------------------------------------
-    # 7.0 USE CASE DIAGRAM
-    # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("7.0 Use Case Diagram", style_h1, "sec_7"))
+    story.append(TrackedParagraph("6.0 Use Case Diagram", style_h1, "sec_6"))
     usecase_img_path = os.path.join(DIAGRAMS_DIR, "02_Use_Case_Diagram.jpg")
     if os.path.exists(usecase_img_path):
-        story.append(Image(usecase_img_path, width=490, height=319))
-        story.append(Paragraph("Figure 7.0 – Use Case Diagram", style_caption))
+        story.append(Image(usecase_img_path, width=490, height=268))
+        story.append(Paragraph("Figure 6.0 – Use Case Diagram", style_caption))
 
     story.append(Paragraph("<b>Description</b>", style_body))
     story.append(Paragraph(
-        "The use case diagram highlights the interactions between the two primary actors (Doctor and Admin) and the Pharmacy Management System.<br/>"
-        "• The Doctor registers, logs in, browses medicines, places prescription orders, simulates payments, and tracks order status.<br/>"
-        "• The Admin manages the drug catalog, handles supplier stock inwarding, verifies incoming doctor orders, marks completed orders as picked up, and views financial reports. "
-        "User registration and login are shared by both roles.",
+        "The use case diagram outlines the core operational workflows and interactions between the primary user roles and the Pharmacy Management System. The system supports two distinct actors, namely Doctor and Admin, each equipped with role-specific privileges alongside shared capabilities for account registration and secure login. Doctors utilize the system to search the live pharmaceutical catalog, examine detailed medication formulations, stage required items into an active digital shopping cart, and submit verified prescription orders. The checkout flow incorporates simulated payment verification across multiple instruments, followed by real-time order status tracking from submission to fulfillment. On the administrative side, pharmacy managers maintain total catalog governance by adding, updating, and removing medicines, evaluating stock levels through low-stock alerts, and monitoring upcoming expiration dates. Administrators also oversee vendor profiles, inspect incoming doctor prescriptions, verify order validity, transition fulfilled items into the picked-up section, review consolidated sales analytics, and generate downloadable or printable financial summaries.",
         style_body
     ))
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 8.0 ARCHITECTURE DIAGRAM
+    # 7.0 ARCHITECTURE DIAGRAM
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("8.0 Architecture Diagram", style_h1, "sec_8"))
+    story.append(TrackedParagraph("7.0 Architecture Diagram", style_h1, "sec_7"))
     arch_img_path = os.path.join(DIAGRAMS_DIR, "01_Solution_Architecture_Diagram.jpg")
     if os.path.exists(arch_img_path):
-        story.append(Image(arch_img_path, width=490, height=319))
-        story.append(Paragraph("Figure 8.0 – Solution Architecture Diagram", style_caption))
+        story.append(Image(arch_img_path, width=490, height=326))
+        story.append(Paragraph("Figure 7.0 – Solution Architecture Diagram", style_caption))
 
     story.append(Paragraph("<b>Description</b>", style_body))
     story.append(Paragraph(
-        "The architecture diagram represents the layered structure of the system:<br/>"
-        "1. Presentation Layer: Client applications and Swagger UI submit HTTP requests.<br/>"
-        "2. Application Layer: The YARP API Gateway routes incoming requests to five microservices: Auth Service, Inventory Service, Order Service, Payment Service, and SaleReport Service.<br/>"
-        "3. Data Layer: Each microservice manages its own private SQL database (User DB, Inventory DB, Order DB, Payment DB, SaleReport DB). Services communicate using REST APIs.",
+        "The solution architecture diagram illustrates the enterprise multi-tier structure of the Pharmacy Management System, detailing the separation of concerns across presentation, routing, application, and persistence tiers. Client interactions originate at the presentation layer via responsive web interfaces and interactive Swagger UI documentation endpoints. Client requests pass through the YARP API Gateway layer, which acts as a centralized reverse proxy and security gatekeeper responsible for enforcing JWT bearer authentication and distributing incoming traffic. The application tier comprises five independent, loosely coupled microservices: Auth Service for identity and credentials management, Inventory Service for drug catalog and supplier stock operations, Order Service for prescription handling and cart management, Payment Service for 1:1 transaction simulations, and SaleReport Service for sales intelligence and profit computation. At the data layer, each microservice connects strictly to its own dedicated SQL Server database, guaranteeing complete data isolation, fault tolerance, and independent scalability.",
         style_body
     ))
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 9.0 ENTITY-RELATIONSHIP DIAGRAM
+    # 8.0 ENTITY-RELATIONSHIP DIAGRAM
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("9.0 Entity-Relationship Diagram", style_h1, "sec_9"))
+    story.append(TrackedParagraph("8.0 Entity-Relationship Diagram", style_h1, "sec_8"))
     er_img_path = os.path.join(DIAGRAMS_DIR, "05_ER_Diagram.jpg")
     if os.path.exists(er_img_path):
-        story.append(Image(er_img_path, width=490, height=344))
-        story.append(Paragraph("Figure 9.0 – Entity-Relationship Diagram (Database-Per-Service Boxes)", style_caption))
+        story.append(Image(er_img_path, width=490, height=326))
+        story.append(Paragraph("Figure 8.0 – Entity-Relationship Diagram (Database-Per-Service Boxes)", style_caption))
 
     story.append(Paragraph("<b>Description</b>", style_body))
     story.append(Paragraph(
-        "The ER diagram represents the data entities and attributes organized into separate boxes for each database:<br/>"
-        "• User DB: Contains the User entity with login, role, and contact attributes.<br/>"
-        "• Inventory DB: Contains Drugs, Suppliers, and Inventory entities with supply and stock relationships.<br/>"
-        "• Order DB: Contains Orders and OrderItems entities tracking prescription orders.<br/>"
-        "• Payment DB: Contains Payments tracking simulated checkout transactions.<br/>"
-        "• SaleReport DB: Standalone service containing SaleReports for revenue and profit summaries.<br/>"
-        "Physical foreign keys exist only within the same database. Relationships across databases are logical references verified through REST APIs.",
+        "The entity-relationship diagram depicts the data models, primary keys, foreign keys, and structural associations organized within distinct database perimeters for each microservice. User DB encapsulates the User entity which records login credentials, contact numbers, and security roles. Inventory DB maintains Supplier, Drugs, and Inventory entities, where each registered supplier supplies multiple inventory shipments in a one-to-many relationship, and each drug is replenished across multiple inventory batches. Order DB encompasses Order and OrderItem entities, structuring each doctor prescription into a parent order containing one or more ordered medicine items. Payment DB isolates the Payment entity, enforcing a strict one-to-one unique constraint with the parent order to ensure every order is fulfilled by exactly one financial transaction. SaleReport DB operates as an analytical store holding pre-computed sales summaries without direct database-level dependencies. Relationships across microservices remain logical and are verified via REST APIs, while relational integrity is maintained internally within each isolated database.",
         style_body
     ))
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 10.0 DATABASE DIAGRAM
+    # 9.0 DATABASE DIAGRAM
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("10.0 Database Diagram", style_h1, "sec_10"))
+    story.append(TrackedParagraph("9.0 Database Diagram", style_h1, "sec_9"))
     db_img_path = os.path.join(DIAGRAMS_DIR, "06_Database_Schema_Diagram.jpg")
     if os.path.exists(db_img_path):
-        story.append(Image(db_img_path, width=490, height=317))
-        story.append(Paragraph("Figure 10.0 – Database Schema Diagram", style_caption))
+        story.append(Image(db_img_path, width=490, height=318))
+        story.append(Paragraph("Figure 9.0 – Database Schema Diagram", style_caption))
 
     story.append(Paragraph("<b>Description</b>", style_body))
     story.append(Paragraph(
-        "The database diagram illustrates the physical tables, column data types, and primary/foreign keys across all five databases.<br/>"
-        "Key tables include Users (credentials and roles), Drugs (pricing, quantities, and minimum stock alerts), Suppliers (vendor contacts), "
-        "Inventory (purchase price and supply dates), Orders and OrderItems (prescription line items), Payments (1:1 unique payment records), "
-        "and SaleReports (financial totals).<br/>"
-        "A unique index on Payment.OrderId prevents duplicate payments for the same order.",
+        "The database diagram defines the physical schema definitions, column data types, nullability rules, and primary and foreign key constraints across the five relational databases. The Users table in Pharmacy_UserDB enforces unique constraints on email addresses while storing hashed passwords and role flags. Within Pharmacy_InventoryDB, the Drugs table tracks trade names, descriptions, therapeutic categories, selling prices, current stock levels, and minimum stock threshold limits used to trigger automated low-stock warnings. The Suppliers table holds vendor contact data, and the Inventory table records incoming wholesale shipments, purchase prices, supply dates, and batch references. Pharmacy_OrderDB contains the Orders and OrderItems tables, recording prescription dates, status values from Cart to PickedUp, and itemized quantities and unit prices. Pharmacy_PaymentDB enforces a unique index on the OrderId column of the Payments table, preventing duplicate payments for any order. Finally, Pharmacy_SaleReportDB stores periodic financial metrics including total order volume, gross revenues, and calculated net profits for official reporting.",
         style_body
     ))
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 11.0 CLASS DIAGRAM
+    # 10.0 CLASS DIAGRAM
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("11.0 Class Diagram", style_h1, "sec_11"))
+    story.append(TrackedParagraph("10.0 Class Diagram", style_h1, "sec_10"))
     cls_img_path = os.path.join(DIAGRAMS_DIR, "03_Class_Diagram.jpg")
     if os.path.exists(cls_img_path):
-        story.append(Image(cls_img_path, width=490, height=343))
-        story.append(Paragraph("Figure 11.0 – Domain Class Diagram", style_caption))
+        story.append(Image(cls_img_path, width=490, height=326))
+        story.append(Paragraph("Figure 10.0 – Domain Class Diagram", style_caption))
 
     story.append(Paragraph("<b>Description</b>", style_body))
     story.append(Paragraph(
-        "The class diagram illustrates the object-oriented domain models and their responsibilities:<br/>"
-        "• User: Handles authentication, signup, and role identification.<br/>"
-        "• Drug: Represents medicine catalog data, selling price, stock levels, and expiry date.<br/>"
-        "• Supplier: Manages supplier profiles and vendor associations.<br/>"
-        "• Order & OrderItem: Tracks prescription lines, quantities, unit prices, and status updates.<br/>"
-        "• Payment: Simulates checkout transactions with 1:1 order enforcement.<br/>"
-        "• SaleReport: Aggregates revenue, purchase costs, and profit calculations.<br/>"
-        "Dashed lines indicate relationships such as 'places', 'manages', 'supplies', 'contains', and 'paid by'.",
+        "The class diagram details the object-oriented structure of domain models, highlighting their private attributes, public properties, and core business operations across the system. The User class encapsulates authentication state, password hashing logic, and role definitions while providing sign-up and login capabilities. The Drug class encapsulates pharmaceutical catalog attributes, unit selling prices, and stock decrement logic, collaborating with the Supplier class which manages distributor contacts and wholesale replenishment. The Order and OrderItem classes govern prescription management, line item calculations, order validation, and status transitions from Cart through Verified to PickedUp. The Payment class manages transaction attributes, payment simulation methods, and one-to-one order binding. The SaleReport class encapsulates financial aggregation routines, calculating gross turnover, cost of goods, and net profit margins across custom date ranges. Interactions between classes reflect concrete business workflows, such as users placing orders, orders containing order items, suppliers restocking drugs, and payments completing orders.",
         style_body
     ))
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 12.0 SOLUTION STEPS
+    # 11.0 SOLUTION STEPS
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("12.0 Solution Steps", style_h1, "sec_12"))
+    story.append(TrackedParagraph("11.0 Solution Steps", style_h1, "sec_11"))
 
     steps = [
-        ("User Registration and Login", [
-            "The user submits registration information (name, email, phone number, password, and role).",
-            "Auth Service hashes the password securely using PBKDF2 and saves the user record in User DB.",
-            "The user logs in with valid email and password credentials.",
-            "Auth Service verifies the password hash and returns a signed JWT token containing user ID, email, and role."
-        ]),
-        ("Admin Manages Drugs and Suppliers", [
-            "The Admin logs in and sends the JWT token in the Authorization header.",
-            "The Admin creates, updates, or deletes medicines in the Inventory Service, setting selling price and minimum stock quantity.",
-            "The Admin adds suppliers and enters incoming medicine stock along with purchase price in the Inventory table.",
-            "Medicine catalog and stock data are saved in Inventory DB."
-        ]),
-        ("Doctor Searches Drugs and Adds to Cart", [
-            "The Doctor logs in and queries available medicines through the search endpoints.",
-            "Inventory Service returns active medicines that have sufficient stock.",
-            "The Doctor selects medicine items, specifies quantities, and adds them to the order cart."
-        ]),
-        ("Doctor Places Order and Simulates Payment", [
-            "The Doctor submits the order payload containing selected medicine items and quantities.",
-            "Order Service calls Inventory Service to verify availability and deduct medicine quantities.",
-            "Order Service creates the order record in Order DB with status 'Pending' and triggers payment.",
-            "Payment Service records the simulated transaction, assigns a unique transaction reference, and sets status to 'Completed'."
-        ]),
-        ("Admin Verifies Order and Marks PickedUp", [
-            "The Admin reviews pending orders submitted by doctors.",
-            "The Admin verifies prescription items and updates order status to 'Verified'.",
-            "When the medicines are collected, the Admin updates the status to 'PickedUp' in the pickup section."
-        ]),
-        ("Admin Generates and Downloads Sales Reports", [
-            "The Admin selects a reporting range (Daily, Weekly, Monthly, or Yearly).",
-            "SaleReport Service aggregates completed orders, calculates revenue, subtracts purchase costs to compute profit, and saves the report.",
-            "The Admin can view summary statistics or download the report as a CSV file."
-        ])
+        ("11.1 User Registration and Login",
+         "The user initiates registration by providing basic account details including full name, contact phone number, email address, password, and assigned role as an Admin or Doctor. The Auth Service validates the submitted inputs and cryptographically hashes the plain-text password using PBKDF2 with a unique cryptographic salt before storing the user record in User DB. During login, the user provides their registered email and password credentials. The Auth Service verifies the password against the stored hash and generates a signed JSON Web Token (JWT) containing user identity, role, and expiration claims. The client application attaches this token to the Authorization header of all subsequent API requests to securely access protected endpoints."),
+
+        ("11.2 Admin Manages Drugs and Suppliers",
+         "The administrator authenticates into the system and provides the JWT token to manage pharmacy inventory resources. Operating through the Inventory Service, the administrator performs full lifecycle management of pharmaceuticals by adding new drug profiles, modifying pricing or descriptions, and retiring obsolete items. Critical attributes such as therapeutic category, selling price, expiry date, and minimum stock threshold limits are established to automate inventory health monitoring. To replenish stock, the administrator registers verified wholesale suppliers and enters incoming shipments into the Inventory table with purchase prices, supplied quantities, and batch tracking numbers. The Inventory Service updates stock levels in real time and persists all changes to Inventory DB."),
+
+        ("11.3 Doctor Searches Drugs and Adds to Cart",
+         "The doctor logs into the clinical portal and explores the live pharmaceutical catalog through keyword searches and category filters. The Inventory Service inspects current inventory and returns only active, non-expired medications with positive stock balances. The doctor reviews clinical descriptions, unit pricing, and stock availability before selecting desired medications and specifying quantities. The doctor then adds the selected items to an active shopping cart. The Order Service creates or updates a staged Cart order record in Order DB, computing line item totals and the overall balance while preserving available physical inventory until checkout confirmation."),
+
+        ("11.4 Doctor Places Order and Simulates Payment",
+         "When the doctor confirms the shopping cart, the Order Service transitions the order into an active 'Pending' status. The Order Service sends an inter-service stock deduction request to the Inventory Service, which validates item availability and deducts the requested quantities from on-hand inventory. The doctor is then presented with the payment simulation interface to select a preferred payment method such as Credit Card, Debit Card, UPI, Net Banking, or Cash. The Payment Service simulates payment gateway processing, creates a dedicated payment record with a unique OrderId constraint in Payment DB, assigns an authentic transaction reference, and updates the payment status to 'Completed'."),
+
+        ("11.5 Admin Verifies Order and Marks PickedUp",
+         "The administrator accesses the order management dashboard to monitor incoming prescription orders submitted across the hospital network. The administrator runs an automated order validation check to verify item counts, positive order amounts, and doctor credentials. Upon successful validation, the administrator verifies the order, transitioning its status to 'Verified' so dispensary personnel can prepare the medications for collection. When the doctor or authorized representative arrives at the dispensary counter, the administrator confirms physical handover and updates the order status to 'PickedUp', archiving the completed order inside the picked-up orders section."),
+
+        ("11.6 Admin Generates and Downloads Sales Reports",
+         "The administrator navigates to the sales analytics portal and selects a reporting timeframe such as Daily, Weekly, Monthly, or Yearly intervals. The SaleReport Service aggregates completed and picked-up prescription orders, computes total sales turnover, and calculates net profits by deducting corresponding wholesale purchase costs from selling prices. The generated financial summary is persisted in SaleReport DB and displayed on executive analytics dashboards, highlighting total order volume, overall revenue, net margins, and top-selling medications. The administrator can also export the official report as a CSV spreadsheet or produce a formatted printable receipt for auditing.")
     ]
-    for s_title, s_bullets in steps:
-        story.append(Paragraph(s_title, style_h2))
-        for b in s_bullets:
-            story.append(Paragraph(f"• {b}", style_bullet))
+    for s_title, s_para in steps:
+        story.append(Paragraph(f"<b>{s_title}</b>", style_h2))
+        story.append(Paragraph(s_para, style_body))
 
     story.append(PageBreak())
 
     # --------------------------------------------------------------------------
-    # 13.0 CLASSES NAMES
+    # 12.0 CLASSES NAMES
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("13.0 Classes Names", style_h1, "sec_13"))
+    story.append(TrackedParagraph("12.0 Classes Names", style_h1, "sec_12"))
 
     story.append(Paragraph("Entities (Models)", style_h2))
     e_rows = [
@@ -707,7 +646,7 @@ def build_pdf_story(section_page_dict):
     # --------------------------------------------------------------------------
     # 14.0 & 15.0
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("14.0 Validations", style_h1, "sec_14"))
+    story.append(TrackedParagraph("13.0 Validations", style_h1, "sec_13"))
     story.append(Paragraph("• User Input Validations: Ensure required fields (name, valid email format, contact phone number, password length) are provided.", style_bullet))
     story.append(Paragraph("• Role Authorization: Ensure only Admin can add/edit drugs, manage suppliers, verify orders, and view sales reports.", style_bullet))
     story.append(Paragraph("• Doctor Isolation: Ensure Doctors can only view and manage their own orders.", style_bullet))
@@ -719,7 +658,7 @@ def build_pdf_story(section_page_dict):
     story.append(Paragraph("• Token Security: Every protected API validates JWT signature, issuer, expiration, and role claims.", style_bullet))
     story.append(Spacer(1, 10))
 
-    story.append(TrackedParagraph("15.0 API Catalogue", style_h1, "sec_15"))
+    story.append(TrackedParagraph("14.0 API Catalogue", style_h1, "sec_14"))
     story.append(Paragraph("The table below lists all endpoints exposed by the microservices (routed through YARP API Gateway):", style_body))
 
     api_rows = [
@@ -760,7 +699,7 @@ def build_pdf_story(section_page_dict):
     # --------------------------------------------------------------------------
     # 16.0 & 17.0
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("16.0 HTTP Status Codes", style_h1, "sec_16"))
+    story.append(TrackedParagraph("15.0 HTTP Status Codes", style_h1, "sec_15"))
     stat_rows = [
         [Paragraph("Status Code", style_th), Paragraph("Status", style_th), Paragraph("Description", style_th)],
         [Paragraph("200", style_td_bold), Paragraph("OK", style_td_bold), Paragraph("The request succeeded and returned the requested data.", style_td)],
@@ -784,7 +723,7 @@ def build_pdf_story(section_page_dict):
     story.append(t_stat)
     story.append(Spacer(1, 10))
 
-    story.append(TrackedParagraph("17.0 Integrations", style_h1, "sec_17"))
+    story.append(TrackedParagraph("16.0 Integrations", style_h1, "sec_16"))
     story.append(Paragraph("• YARP API Gateway: Provides a central entry point and routes client requests to the appropriate microservice.", style_bullet))
     story.append(Paragraph("• REST APIs: Enable synchronous communication between Order, Inventory, and Payment services using typed HTTP clients.", style_bullet))
     story.append(Paragraph("• JWT Bearer Authentication: Secures APIs with signed tokens and supports role-based access for Admin and Doctor.", style_bullet))
@@ -797,7 +736,7 @@ def build_pdf_story(section_page_dict):
     # --------------------------------------------------------------------------
     # 18.0 & 19.0
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("18.0 Sample API Requests", style_h1, "sec_18"))
+    story.append(TrackedParagraph("17.0 Sample API Requests", style_h1, "sec_17"))
     story.append(Paragraph("Sample POST request to create an order (/api/orders):", style_body))
 
     req_code = (
@@ -831,7 +770,7 @@ def build_pdf_story(section_page_dict):
     story.append(t_box_req)
     story.append(Spacer(1, 15))
 
-    story.append(TrackedParagraph("19.0 Sample API Responses", style_h1, "sec_19"))
+    story.append(TrackedParagraph("18.0 Sample API Responses", style_h1, "sec_18"))
     story.append(Paragraph("Successful response returned after order creation:", style_body))
 
     res_code = (
@@ -879,7 +818,7 @@ def build_pdf_story(section_page_dict):
     # --------------------------------------------------------------------------
     # 20.0 NUNIT UNIT TESTING
     # --------------------------------------------------------------------------
-    story.append(TrackedParagraph("20.0 NUnit Unit Testing", style_h1, "sec_20"))
+    story.append(TrackedParagraph("19.0 NUnit Unit Testing", style_h1, "sec_19"))
     story.append(Paragraph("The unit testing suite validates key business logic and error scenarios using NUnit and Moq:", style_body))
 
     test_rows = [

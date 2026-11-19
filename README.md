@@ -111,7 +111,7 @@ pharmacyManagement/
 │   ├── PharmacyManagement_LLD.docx      # Editable Word Low Level Design Document
 │   ├── PharmacyManagement_LLD.pdf       # Professional 22-page LLD PDF Document
 │   ├── PharmacyManagement_LLD.md        # Complete Markdown LLD Document
-│   └── diagrams/                        # 6 Reference-style architectural diagrams
+│   └── diagrams/                        # 5 Reference-style architectural diagrams
 ├── src/
 │   ├── ApiGateway/                      # Port 5000: YARP API Gateway with unified Swagger
 │   ├── Common/
