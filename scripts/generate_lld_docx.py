@@ -8,19 +8,16 @@ from docx.oxml.ns import nsdecls, qn
 
 WORKSPACE_DOCX = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\PharmacyManagement_LLD.docx"
 ARTIFACT_DOCX = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\fbadf837-bfa5-49ff-a097-c847f39ee39a\PharmacyManagement_LLD.docx"
-
 DIAGRAMS_DIR = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\diagrams"
 
-# Corporate Color Palette (Matching TechBuddy Reference)
-COLOR_PRIMARY_HEX = "004F7A"    # TechBuddy Deep Teal/Blue
-COLOR_SECONDARY_HEX = "1A5276"  # Navy
+# Corporate Color Palette (Matching Template: Deep Navy & Clean Slate)
+COLOR_PRIMARY_HEX = "004F7A"    # Deep Teal/Navy
 COLOR_DARK_HEX = "1E293B"       # Slate body
 COLOR_HEADER_BG = "F1F5F9"      # Table header background
 COLOR_BORDER_HEX = "CBD5E1"     # Table border
 COLOR_MUTED_HEX = "64748B"      # Subtext gray
 
 COLOR_PRIMARY = RGBColor(0x00, 0x4F, 0x7A)
-COLOR_SECONDARY = RGBColor(0x1A, 0x52, 0x76)
 COLOR_DARK = RGBColor(0x1E, 0x29, 0x3B)
 COLOR_MUTED = RGBColor(0x64, 0x74, 0x8B)
 
@@ -55,14 +52,13 @@ def add_callout_box(doc, text, title=None):
     cell = tbl.cell(0, 0)
     cell.width = Inches(6.5)
     set_cell_background(cell, "F8FAFC")
-    set_cell_margins(cell, top=140, bottom=140, left=200, right=200)
+    set_cell_margins(cell, top=120, bottom=120, left=180, right=180)
     
-    # Left thick border, no top/bottom/right
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = parse_xml(
         f'<w:tcBorders {nsdecls("w")}>'
         f'<w:top w:val="none"/>'
-        f'<w:left w:val="single" w:sz="24" w:space="0" w:color="{COLOR_PRIMARY_HEX}"/>'
+        f'<w:left w:val="single" w:sz="20" w:space="0" w:color="{COLOR_PRIMARY_HEX}"/>'
         f'<w:bottom w:val="none"/>'
         f'<w:right w:val="none"/>'
         f'</w:tcBorders>'
@@ -81,7 +77,7 @@ def add_callout_box(doc, text, title=None):
         run_t.font.color.rgb = COLOR_PRIMARY
     run = p.add_run(text)
     run.font.name = "Calibri"
-    run.font.size = Pt(10)
+    run.font.size = Pt(9.5)
     run.font.color.rgb = COLOR_DARK
 
     p_after = doc.add_paragraph()
@@ -92,1050 +88,1046 @@ def build_docx(output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     doc = docx.Document()
 
-    # Page Margins: 0.8 inch left/right/top/bottom
+    # Page Margins: 0.8 inch
     for section in doc.sections:
         section.top_margin = Inches(0.8)
         section.bottom_margin = Inches(0.8)
         section.left_margin = Inches(0.8)
         section.right_margin = Inches(0.8)
-        section.different_first_page_header_footer = True
 
-        # Header for subsequent pages
-        header = section.header
-        hp = header.paragraphs[0]
-        hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        hrun = hp.add_run("Pharmacy Management System - Low Level Design (LLD)")
-        hrun.font.name = "Calibri"
-        hrun.font.size = Pt(8.5)
-        hrun.font.color.rgb = COLOR_MUTED
+    # --------------------------------------------------------------------------
+    # COVER PAGE
+    # --------------------------------------------------------------------------
+    p_sp = doc.add_paragraph()
+    p_sp.paragraph_format.space_before = Pt(90)
 
-        # Footer for subsequent pages
-        footer = section.footer
-        fp = footer.paragraphs[0]
-        fp.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        frun = fp.add_run("Confidential - For Internal Use Only                                                       Page Reference: POC-LLD-1.0")
-        frun.font.name = "Calibri"
-        frun.font.size = Pt(8.5)
-        frun.font.color.rgb = COLOR_MUTED
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_t1 = p_title.add_run("PHARMACY MANAGEMENT SYSTEM\n")
+    r_t1.font.name = "Calibri"
+    r_t1.font.size = Pt(26)
+    r_t1.font.bold = True
+    r_t1.font.color.rgb = COLOR_PRIMARY
 
-    # Helpers for paragraph styling
-    def add_h1(text):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(18)
-        p.paragraph_format.space_after = Pt(6)
-        p.paragraph_format.keep_with_next = True
-        run = p.add_run(text)
+    r_t2 = p_title.add_run("POC\nLow Level Design (LLD)")
+    r_t2.font.name = "Calibri"
+    r_t2.font.size = Pt(18)
+    r_t2.font.color.rgb = COLOR_PRIMARY
+
+    p_mid = doc.add_paragraph()
+    p_mid.paragraph_format.space_before = Pt(180)
+
+    p_meta = doc.add_paragraph()
+    r_m = p_meta.add_run("PharmacyManagement Microservices\nPOC – Low Level Design (LLD)\n\nDate: 19/11/2026\nCurrent Document Version: [1.0]\n\nAuthor: Lahari Chikoti")
+    r_m.font.name = "Calibri"
+    r_m.font.size = Pt(10.5)
+    r_m.font.color.rgb = COLOR_DARK
+
+    doc.add_page_break()
+
+    # --------------------------------------------------------------------------
+    # DOCUMENT APPROVAL & CHANGE HISTORY
+    # --------------------------------------------------------------------------
+    p_app = doc.add_paragraph()
+    r_app = p_app.add_run("DOCUMENT APPROVAL Approvers of this document")
+    r_app.font.name = "Calibri"
+    r_app.font.size = Pt(13)
+    r_app.font.bold = True
+    r_app.font.color.rgb = COLOR_PRIMARY
+
+    tbl_app = doc.add_table(rows=3, cols=5)
+    tbl_app.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_app)
+    app_headers = ["Name", "Department", "Role", "Signature", "Date"]
+    for i, h in enumerate(app_headers):
+        cell = tbl_app.cell(0, i)
+        set_cell_background(cell, COLOR_HEADER_BG)
+        set_cell_margins(cell)
+        p = cell.paragraphs[0]
+        run = p.add_run(h)
         run.font.name = "Calibri"
-        run.font.size = Pt(16)
+        run.font.size = Pt(9.5)
+        run.font.bold = True
+
+    app_data = [
+        ["Lahari Chikoti", "Engineering", "Lead Developer", "L. Chikoti", "19/11/2026"],
+        ["Technical Reviewer", "Architecture", "Solution Architect", "Approved", "19/11/2026"]
+    ]
+    for row_idx, r_data in enumerate(app_data, start=1):
+        for col_idx, val in enumerate(r_data):
+            cell = tbl_app.cell(row_idx, col_idx)
+            set_cell_margins(cell)
+            p = cell.paragraphs[0]
+            run = p.add_run(val)
+            run.font.name = "Calibri"
+            run.font.size = Pt(9)
+
+    doc.add_paragraph().paragraph_format.space_before = Pt(16)
+
+    p_hist = doc.add_paragraph()
+    r_hist = p_hist.add_run("Document Change History")
+    r_hist.font.name = "Calibri"
+    r_hist.font.size = Pt(13)
+    r_hist.font.bold = True
+    r_hist.font.color.rgb = COLOR_PRIMARY
+
+    tbl_hist = doc.add_table(rows=2, cols=4)
+    tbl_hist.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_hist)
+    hist_headers = ["Document Version #", "Author", "Date", "Description"]
+    for i, h in enumerate(hist_headers):
+        cell = tbl_hist.cell(0, i)
+        set_cell_background(cell, COLOR_HEADER_BG)
+        set_cell_margins(cell)
+        p = cell.paragraphs[0]
+        run = p.add_run(h)
+        run.font.name = "Calibri"
+        run.font.size = Pt(9.5)
+        run.font.bold = True
+
+    hist_data = ["1.0", "Lahari Chikoti", "19/11/2026", "Pharmacy Management System LLD Initial Baseline"]
+    for i, v in enumerate(hist_data):
+        cell = tbl_hist.cell(1, i)
+        set_cell_margins(cell)
+        p = cell.paragraphs[0]
+        run = p.add_run(v)
+        run.font.name = "Calibri"
+        run.font.size = Pt(9)
+
+    doc.add_paragraph().paragraph_format.space_before = Pt(20)
+
+    # --------------------------------------------------------------------------
+    # TABLE OF CONTENTS
+    # --------------------------------------------------------------------------
+    p_toc = doc.add_paragraph()
+    p_toc.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    r_toc = p_toc.add_run("Table of Contents")
+    r_toc.font.name = "Calibri"
+    r_toc.font.size = Pt(16)
+    r_toc.font.bold = True
+    r_toc.font.color.rgb = COLOR_PRIMARY
+
+    tbl_toc = doc.add_table(rows=21, cols=3)
+    tbl_toc.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_toc)
+    col_widths = [Inches(1.0), Inches(4.5), Inches(1.0)]
+
+    for i, w in enumerate(col_widths):
+        cell = tbl_toc.cell(0, i)
+        cell.width = w
+        set_cell_background(cell, COLOR_HEADER_BG)
+        set_cell_margins(cell)
+
+    tbl_toc.cell(0, 0).paragraphs[0].add_run("Section").font.bold = True
+    tbl_toc.cell(0, 1).paragraphs[0].add_run("Title").font.bold = True
+    tbl_toc.cell(0, 2).paragraphs[0].add_run("Page No.").font.bold = True
+
+    toc_items = [
+        ("1.0", "Document Purpose", "4"),
+        ("2.0", "Intended Audience", "4"),
+        ("3.0", "Project Background and Objectives", "5"),
+        ("4.0", "Requirements", "5"),
+        ("5.0", "Design Patterns", "7"),
+        ("6.0", "Flow Diagram", "8"),
+        ("7.0", "Use Case Diagram", "9"),
+        ("8.0", "Architecture Diagram", "10"),
+        ("9.0", "Entity-Relationship Diagram", "11"),
+        ("10.0", "Database Diagram", "12"),
+        ("11.0", "Class Diagram", "13"),
+        ("12.0", "Solution Steps", "14"),
+        ("13.0", "Classes Names", "16"),
+        ("14.0", "Validations", "19"),
+        ("15.0", "API Catalogue", "19"),
+        ("16.0", "HTTP Status Codes", "20"),
+        ("17.0", "Integrations", "21"),
+        ("18.0", "Sample API Requests", "21"),
+        ("19.0", "Sample API Responses", "22"),
+        ("20.0", "NUnit Unit Testing", "23")
+    ]
+    for idx, (sec_num, sec_title, p_num) in enumerate(toc_items, start=1):
+        for col_i, w in enumerate(col_widths):
+            tbl_toc.cell(idx, col_i).width = w
+            set_cell_margins(tbl_toc.cell(idx, col_i), top=60, bottom=60)
+        p0 = tbl_toc.cell(idx, 0).paragraphs[0]
+        p0.add_run(sec_num).font.name = "Calibri"
+        p1 = tbl_toc.cell(idx, 1).paragraphs[0]
+        p1.add_run(sec_title).font.name = "Calibri"
+        p2 = tbl_toc.cell(idx, 2).paragraphs[0]
+        p2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p2.add_run(p_num).font.name = "Calibri"
+
+    doc.add_page_break()
+
+    # Helper for adding standard section headings
+    def add_section_header(title):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(14)
+        p.paragraph_format.space_after = Pt(4)
+        run = p.add_run(title)
+        run.font.name = "Calibri"
+        run.font.size = Pt(14)
         run.font.bold = True
         run.font.color.rgb = COLOR_PRIMARY
         return p
 
-    def add_h2(text):
+    def add_body_p(text):
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(4)
-        p.paragraph_format.keep_with_next = True
-        run = p.add_run(text)
-        run.font.name = "Calibri"
-        run.font.size = Pt(12.5)
-        run.font.bold = True
-        run.font.color.rgb = COLOR_SECONDARY
-        return p
-
-    def add_body(text, bold_prefix=None):
-        p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(3)
-        p.paragraph_format.space_after = Pt(4)
-        p.paragraph_format.line_spacing = 1.15
-        if bold_prefix:
-            run_b = p.add_run(bold_prefix)
-            run_b.font.name = "Calibri"
-            run_b.font.size = Pt(10.5)
-            run_b.font.bold = True
-            run_b.font.color.rgb = COLOR_DARK
-        run = p.add_run(text)
-        run.font.name = "Calibri"
-        run.font.size = Pt(10.5)
-        run.font.color.rgb = COLOR_DARK
-        return p
-
-    def add_bullet(text, bold_prefix=None):
-        p = doc.add_paragraph(style='List Bullet')
         p.paragraph_format.space_before = Pt(2)
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(4)
         p.paragraph_format.line_spacing = 1.15
-        if bold_prefix:
-            run_b = p.add_run(bold_prefix)
-            run_b.font.name = "Calibri"
-            run_b.font.size = Pt(10)
-            run_b.font.bold = True
-            run_b.font.color.rgb = COLOR_DARK
         run = p.add_run(text)
         run.font.name = "Calibri"
         run.font.size = Pt(10)
         run.font.color.rgb = COLOR_DARK
         return p
 
-    # =========================================================================
-    # PAGE 1: COVER PAGE
-    # =========================================================================
-    p_sp = doc.add_paragraph()
-    p_sp.paragraph_format.space_before = Pt(120)
+    def add_bullet(text):
+        p = doc.add_paragraph(style='List Bullet')
+        p.paragraph_format.space_before = Pt(1)
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.line_spacing = 1.15
+        run = p.add_run(text)
+        run.font.name = "Calibri"
+        run.font.size = Pt(9.5)
+        run.font.color.rgb = COLOR_DARK
+        return p
 
-    p_t = doc.add_paragraph()
-    p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_t = p_t.add_run("PHARMACY MANAGEMENT SYSTEM")
-    run_t.font.name = "Calibri"
-    run_t.font.size = Pt(28)
-    run_t.font.bold = True
-    run_t.font.color.rgb = COLOR_PRIMARY
+    # --------------------------------------------------------------------------
+    # 1.0 DOCUMENT PURPOSE
+    # --------------------------------------------------------------------------
+    add_section_header("1.0 Document Purpose")
+    add_body_p(
+        "This document describes the Low-Level Design (LLD) of the Pharmacy Management System. "
+        "The system is built using C#, ASP.NET Core Web API, .NET 10, and a microservices architecture. "
+        "It defines the service layout, database tables, business rules, validations, APIs, and unit testing approach."
+    )
+    add_body_p(
+        "The application has five independent services: Auth Service, Inventory Service, Order Service, "
+        "Payment Service, and SaleReport Service. Each service owns its private database. "
+        "Services talk to each other through REST APIs, while the YARP API Gateway routes client requests. "
+        "Swagger UI is used to test and document all endpoints."
+    )
 
-    p_poc = doc.add_paragraph()
-    p_poc.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_poc.paragraph_format.space_before = Pt(8)
-    run_poc = p_poc.add_run("POC")
-    run_poc.font.name = "Calibri"
-    run_poc.font.size = Pt(20)
-    run_poc.font.bold = True
-    run_poc.font.color.rgb = COLOR_SECONDARY
+    # --------------------------------------------------------------------------
+    # 2.0 INTENDED AUDIENCE
+    # --------------------------------------------------------------------------
+    add_section_header("2.0 Intended Audience")
+    add_body_p("This document serves as a guide for project stakeholders:")
 
-    p_lld = doc.add_paragraph()
-    p_lld.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_lld.paragraph_format.space_before = Pt(14)
-    run_lld = p_lld.add_run("Low Level Design (LLD)")
-    run_lld.font.name = "Calibri"
-    run_lld.font.size = Pt(16)
-    run_lld.font.color.rgb = COLOR_PRIMARY
+    tbl_aud = doc.add_table(rows=6, cols=2)
+    tbl_aud.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_aud)
+    tbl_aud.cell(0, 0).width = Inches(2.2)
+    tbl_aud.cell(0, 1).width = Inches(4.3)
+    set_cell_background(tbl_aud.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_aud.cell(0, 1), COLOR_HEADER_BG)
+    tbl_aud.cell(0, 0).paragraphs[0].add_run("Role").font.bold = True
+    tbl_aud.cell(0, 1).paragraphs[0].add_run("Engagement in Pharmacy Management Architecture").font.bold = True
 
-    p_sp2 = doc.add_paragraph()
-    p_sp2.paragraph_format.space_before = Pt(240)
-
-    # Bottom Metadata Table
-    meta_table = doc.add_table(rows=1, cols=2)
-    meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    cell_l = meta_table.cell(0, 0)
-    cell_r = meta_table.cell(0, 1)
-    cell_l.width = Inches(4.5)
-    cell_r.width = Inches(2.0)
-
-    pl = cell_l.paragraphs[0]
-    pl.paragraph_format.line_spacing = 1.2
-    run_l1 = pl.add_run("PharmacyManagement Microservices\nPOC – Low Level Design (LLD)\n\n")
-    run_l1.font.name = "Calibri"
-    run_l1.font.size = Pt(11)
-    run_l1.font.bold = True
-    run_l1.font.color.rgb = COLOR_DARK
-    run_l2 = pl.add_run("Date: 18/11/2026\nCurrent Document Version: [1.0]")
-    run_l2.font.name = "Calibri"
-    run_l2.font.size = Pt(10.5)
-    run_l2.font.color.rgb = COLOR_DARK
-
-    pr = cell_r.paragraphs[0]
-    pr.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    run_r = pr.add_run("Author:\nLahari Chikoti")
-    run_r.font.name = "Calibri"
-    run_r.font.size = Pt(12)
-    run_r.font.bold = True
-    run_r.font.color.rgb = COLOR_PRIMARY
+    aud_data = [
+        ("Product Owners / SMEs", "Confirm that the design covers all pharmacy requirements."),
+        ("Business Analysts", "Map doctor and admin business workflows to technical APIs."),
+        ("Enterprise Architects", "Review microservice boundaries, security rules, and database isolation."),
+        ("Solution Architects", "Check the API contracts, service communications, and data flow."),
+        ("Developers & QA Engineers", "Use this document to implement features and write unit tests.")
+    ]
+    for idx, (r_name, r_desc) in enumerate(aud_data, start=1):
+        tbl_aud.cell(idx, 0).width = Inches(2.2)
+        tbl_aud.cell(idx, 1).width = Inches(4.3)
+        set_cell_margins(tbl_aud.cell(idx, 0))
+        set_cell_margins(tbl_aud.cell(idx, 1))
+        tbl_aud.cell(idx, 0).paragraphs[0].add_run(r_name).font.size = Pt(9.5)
+        tbl_aud.cell(idx, 1).paragraphs[0].add_run(r_desc).font.size = Pt(9.5)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # PAGE 2: APPROVAL, CHANGE HISTORY & TABLE OF CONTENTS
-    # =========================================================================
-    add_h2("DOCUMENT APPROVAL Approvers of this document")
-    t_app = doc.add_table(rows=4, cols=5)
-    t_app.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_app)
-    app_headers = ["Name", "Department", "Role", "Signature", "Date"]
-    for i, h in enumerate(app_headers):
-        c = t_app.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        p = c.paragraphs[0]
-        r = p.add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
-
-    app_rows = [
-        ("Technical Review Board", "Architecture & Engineering", "Lead Architect", "Approved", "18/11/2026"),
-        ("Solution Lead", ".NET Practice", "Solutions Lead", "Approved", "18/11/2026"),
-        ("Project Manager", "Healthcare Deliveries", "Delivery Manager", "Approved", "18/11/2026")
-    ]
-    for r_idx, row in enumerate(app_rows, start=1):
-        for c_idx, val in enumerate(row):
-            c = t_app.cell(r_idx, c_idx)
-            set_cell_margins(c)
-            p = c.paragraphs[0]
-            r = p.add_run(val)
-            r.font.name = "Calibri"
-            r.font.size = Pt(9)
-
-    doc.add_paragraph().paragraph_format.space_after = Pt(6)
-
-    add_h2("Document Change History")
-    t_hist = doc.add_table(rows=2, cols=4)
-    t_hist.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_hist)
-    hist_headers = ["Document Version #", "Author", "Date", "Description"]
-    for i, h in enumerate(hist_headers):
-        c = t_hist.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        p = c.paragraphs[0]
-        r = p.add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
-
-    hist_vals = ["1.0", "Lahari Chikoti", "18/11/2026", "Pharmacy Management System Low Level Design (LLD)"]
-    for i, val in enumerate(hist_vals):
-        c = t_hist.cell(1, i)
-        set_cell_margins(c)
-        p = c.paragraphs[0]
-        r = p.add_run(val)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9)
-
-    doc.add_paragraph().paragraph_format.space_after = Pt(6)
-
-    add_h2("Table of Contents")
-    t_toc = doc.add_table(rows=21, cols=3)
-    t_toc.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_toc)
-    for i, h in enumerate(["Section", "Title", "Page Reference"]):
-        c = t_toc.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c, top=60, bottom=60)
-        p = c.paragraphs[0]
-        r = p.add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
-
-    toc_items = [
-        ("1.0", "Document Purpose", "3"),
-        ("2.0", "Intended Audience", "3"),
-        ("3.0", "Project Background and Objectives", "4"),
-        ("4.0", "Requirements", "4"),
-        ("5.0", "Design Patterns", "6"),
-        ("6.0", "Flow Diagram", "7"),
-        ("7.0", "Use Case Diagram", "8"),
-        ("8.0", "Architecture Diagram", "9"),
-        ("9.0", "Entity-Relationship Diagram", "10"),
-        ("10.0", "Database Diagram", "11"),
-        ("11.0", "Sequence Diagram", "12"),
-        ("12.0", "Solution Steps", "13"),
-        ("13.0", "Classes Names", "15"),
-        ("14.0", "Validations", "17"),
-        ("15.0", "API Catalogue", "18"),
-        ("16.0", "HTTP Status Codes", "19"),
-        ("17.0", "Integrations", "19"),
-        ("18.0", "Sample API Requests", "20"),
-        ("19.0", "Sample API Responses", "20"),
-        ("20.0", "Unit Testing", "21")
-    ]
-    for r_idx, (sec, tit, pg) in enumerate(toc_items, start=1):
-        c0 = t_toc.cell(r_idx, 0)
-        c1 = t_toc.cell(r_idx, 1)
-        c2 = t_toc.cell(r_idx, 2)
-        set_cell_margins(c0, top=50, bottom=50)
-        set_cell_margins(c1, top=50, bottom=50)
-        set_cell_margins(c2, top=50, bottom=50)
-        c0.paragraphs[0].add_run(sec).font.size = Pt(9)
-        c1.paragraphs[0].add_run(tit).font.size = Pt(9)
-        c2.paragraphs[0].add_run(pg).font.size = Pt(9)
-
-    doc.add_page_break()
-
-    # =========================================================================
-    # SECTION 1.0 & 2.0
-    # =========================================================================
-    add_h1("1.0 Document Purpose")
-    add_body(
-        "This document describes the Low-Level Design (LLD) of the Pharmacy Management System POC, "
-        "developed using C#, ASP.NET Core Web API, .NET 8, Entity Framework Core, LINQ, and Microsoft SQL Server "
-        "under a distributed Microservices Architecture. It defines the internal MVC service structures, REST APIs, "
-        "database-per-service isolation, authentication and role-based access control (RBAC), transactional integrity rules, "
-        "and testing verification approach through interactive Swagger UI."
-    )
-    add_body(
-        "The system consists of five decoupled services: Auth Service, Inventory Service, Order Service, "
-        "Payment Service, and SaleReport Service. Each service encapsulates its own bounded context and database, "
-        "exposing RESTful endpoints consumed by clinical staff, dispensing doctors, administrators, and external consumers."
-    )
-
-    add_h1("2.0 Intended Audience")
-    add_body("This document is intended as a technical reference for the following stakeholders:")
+    # --------------------------------------------------------------------------
+    # 3.0 PROJECT BACKGROUND AND OBJECTIVES
+    # --------------------------------------------------------------------------
+    add_section_header("3.0 Project Background and Objectives")
     
-    t_aud = doc.add_table(rows=6, cols=2)
-    t_aud.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_aud)
-    for i, h in enumerate(["Role", "Nature of Engagement in Pharmacy Management System Architecture"]):
-        c = t_aud.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
-
-    aud_rows = [
-        ("Product Owners / SMEs", "Ensure that the microservices design aligns strictly with pharmacy dispensing regulations, stock safety, and administrative workflows."),
-        ("Business Analysts", "Map clinical and administrative requirements into technical service endpoints and entity specifications."),
-        ("Enterprise Architects", "Review architectural consistency, database isolation boundaries, and inter-service HTTP REST communication standards."),
-        ("Solution Architects", "Validate security patterns, JWT token issuance, EF Core LINQ query performance, and transactional boundaries."),
-        ("Developers", "Use this document as an authoritative technical blueprint for implementing controllers, services, repositories, DTOs, and unit tests.")
-    ]
-    for r_idx, (role, desc) in enumerate(aud_rows, start=1):
-        c0 = t_aud.cell(r_idx, 0)
-        c1 = t_aud.cell(r_idx, 1)
-        set_cell_margins(c0)
-        set_cell_margins(c1)
-        r0 = c0.paragraphs[0].add_run(role)
-        r0.font.name = "Calibri"
-        r0.font.size = Pt(9)
-        r0.font.bold = True
-        r1 = c1.paragraphs[0].add_run(desc)
-        r1.font.name = "Calibri"
-        r1.font.size = Pt(9)
-
-    doc.add_page_break()
-
-    # =========================================================================
-    # SECTION 3.0 & 4.0
-    # =========================================================================
-    add_h1("3.0 Project Background and Objectives")
-    add_h2("3.1 Project Background")
-    add_body(
-        "The Pharmacy Management System is an enterprise backend application engineered to modernize medication dispensing, "
-        "wholesale pharmaceutical procurement, prescription order tracking, and financial analytics. Operating in clinical healthcare "
-        "environments, the system enables Doctor users to browse medication catalogs with real-time stock availability, "
-        "view unit prices, and place prescription drug orders. Simultaneously, Admin users maintain full control over the "
-        "formulary (adding, editing, and deleting drugs), manage certified wholesale pharmaceutical suppliers, track batch purchase prices, "
-        "verify doctor orders, mark completed patient counter collections in the 'PickedUp' section, and generate comprehensive sales "
-        "and net profit reports."
-    )
-    add_body(
-        "The application is structured into five independent microservices: Auth Service, Inventory Service, "
-        "Order Service, Payment Service, and SaleReport Service. In accordance with microservices best practices, "
-        "each microservice owns its dedicated database, preventing cross-database query coupling and enabling independent deployment."
+    p_b1 = doc.add_paragraph()
+    p_b1.add_run("3.1 Project Background\n").font.bold = True
+    p_b1.runs[0].font.size = Pt(11)
+    p_b1.runs[0].font.color.rgb = COLOR_PRIMARY
+    add_body_p(
+        "Pharmacies need reliable software to manage medicine stocks, drug suppliers, doctor prescription orders, "
+        "and sales accounting. Handling these records manually leads to misplaced orders, billing errors, or stock shortages.\n\n"
+        "The Pharmacy Management System provides a clean backend solution. Doctors can check available medicines, "
+        "add items to cart, and place orders. Admins can manage medicines, track supplier deliveries, verify orders, "
+        "and view profit and sales reports."
     )
 
-    add_h2("3.2 Project Objective")
-    add_body("The primary objective is to deliver a robust, scalable, and maintainable backend using .NET 8, C# 12, Entity Framework Core, LINQ, and Microsoft SQL Server 2022. Key goals include:")
-    add_bullet("Strict enforcement of the Database-per-Service pattern with zero cross-database joins.", "• Domain Isolation: ")
-    add_bullet("Controllers expose clean REST contracts, Services enforce business rules, and Repositories execute LINQ queries.", "• Internal MVC Separation: ")
-    add_bullet("Cryptographically signed JWT tokens with Role Claims (Admin vs Doctor) protecting critical endpoints.", "• Stateless Security: ")
-    add_bullet("Atomic quantity decrementing during ordering, 1:1 unique payment enforcement, and immutable financial aggregation.", "• Data Consistency: ")
-    add_bullet("Complete Swagger / OpenAPI 3.0 integration for interactive API validation without requiring a frontend.", "• Testing & Documentation: ")
+    p_b2 = doc.add_paragraph()
+    p_b2.add_run("3.2 Project Objective\n").font.bold = True
+    p_b2.runs[0].font.size = Pt(11)
+    p_b2.runs[0].font.color.rgb = COLOR_PRIMARY
+    add_body_p(
+        "The objective is to develop a reliable and modular backend using C#, ASP.NET Core Web API, .NET 10, "
+        "and microservices architecture. Key goals include:\n"
+        "• Dividing operations into five services with separate SQL databases.\n"
+        "• Securing endpoints using JWT Bearer authentication and role checks (Admin and Doctor).\n"
+        "• Enabling doctors to browse medicines, place orders, and simulate payments.\n"
+        "• Enabling admins to manage inventory, verify orders, and review sales analytics.\n"
+        "• Documenting all endpoints in Swagger UI and validating logic with NUnit tests."
+    )
 
-    add_h1("4.0 Requirements")
-    add_h2("4.1 Functional Requirements (FR)")
-    add_body("For Admin Users:", bold_prefix=None)
-    add_bullet("Secure registration and authentication with Name, Contact, Email, Password, and Role assignment.", "1. Login / Signup: ")
-    add_bullet("Query and inspect complete catalog details including Drug Name, Description, Selling Price, Expiry Date, Quantity, and Availability.", "2. View Drugs: ")
-    add_bullet("Full lifecycle formulary management with price validation and duplicate prevention.", "3. Add / Edit / Delete Drugs: ")
-    add_bullet("Query registered pharmaceutical suppliers, contact emails, phone numbers, and physical addresses.", "4. View Suppliers: ")
-    add_bullet("Vendor management to record verified wholesale distributors.", "5. Add / Edit / Delete Suppliers: ")
-    add_bullet("Inspect orders submitted by all doctors, including items, unit prices, doctor identity, and timestamps.", "6. View Doctor Orders: ")
-    add_bullet("Inspect order line items and update order status from Pending to Verified upon clinical validation.", "7. Verify Orders: ")
-    add_bullet("Confirm counter collection and move verified orders to the fulfilled PickedUp state.", "8. Add Order to PickedUp Section: ")
-    add_bullet("Query financial performance aggregated across Daily, Weekly, Monthly, and Yearly intervals.", "9. View Sales Reports: ")
-    add_bullet("Export financial data as downloadable CSV spreadsheets or formatted printable receipt views.", "10. Download / Print Sales Report: ")
+    # --------------------------------------------------------------------------
+    # 4.0 REQUIREMENTS
+    # --------------------------------------------------------------------------
+    add_section_header("4.0 Requirements")
+    
+    p_r1 = doc.add_paragraph()
+    p_r1.add_run("4.1 Functional Requirements (FR)\n").font.bold = True
+    p_r1.runs[0].font.size = Pt(11)
+    p_r1.runs[0].font.color.rgb = COLOR_PRIMARY
 
-    add_body("For Doctor Users:", bold_prefix=None)
-    add_bullet("Register with Name, Contact, Email, and Password to obtain Doctor privileges.", "1. Login / Signup: ")
-    add_bullet("Browse active medication formularies with live stock levels and pricing.", "2. View Drugs: ")
-    add_bullet("Place orders containing single or multiple medications, staging items in Cart/Pending status.", "3. Buy Drugs: ")
+    add_body_p("For Admin:")
+    add_bullet("Login / Signup: Sign up and log in using name, email, contact number, and password.")
+    add_bullet("View Drugs: Browse and view full details of all medicines in the pharmacy.")
+    add_bullet("Manage Drugs: Add new drugs, edit drug details and prices, and delete drugs.")
+    add_bullet("Manage Suppliers: View suppliers, add new suppliers, and update supplier information.")
+    add_bullet("View Doctor Orders: Review orders placed by doctors and check their validity.")
+    add_bullet("Verify Orders: Mark valid doctor orders as 'Verified'.")
+    add_bullet("Order Handover: Move verified orders to the 'PickedUp' section once collected.")
+    add_bullet("Sales Reports: View daily, weekly, monthly, and yearly sales summaries.")
+    add_bullet("Download / Print: Export sales reports in CSV format for printing and bookkeeping.")
+    add_bullet("Dashboard Analytics: Monitor low stock medicines, check expired drugs, analyze profit margins, and track top-selling medicines.")
 
-    add_h2("4.2 Non-Functional Requirements (NFR)")
-    add_bullet("Microservices architecture with independent compilation, lifecycle, and dedicated databases.", "• Architecture: ")
-    add_bullet("PBKDF2 with SHA-256 password hashing (100,000 iterations); HMAC-SHA256 signed JWT Bearer authentication.", "• Security: ")
-    add_bullet("Monetary calculations (Selling Price, Purchase Price, Total Amount, Revenue, Profit) use DECIMAL(18,2).", "• Data Precision: ")
-    add_bullet("All audit timestamps are recorded in UTC using DATETIME2(7).", "• Time Precision: ")
-    add_bullet("Unified ApiResponse<T> envelope across all services returning Success, Message, Data, and Errors.", "• API Standardization: ")
-    add_bullet("Full Swagger / OpenAPI 3.0 UI with Bearer Token Authorize button on every microservice.", "• Interactive Verification: ")
+    add_body_p("For Doctor User:")
+    add_bullet("Login / Signup: Sign up and log in with name, email, contact number, and password.")
+    add_bullet("View Drugs: Browse all available medicines with prices and current stock counts.")
+    add_bullet("Buy Drugs & Cart: Add selected drugs to cart and create prescription orders.")
+    add_bullet("Payment Simulation: Complete order payment checkout using simulated payment.")
+    add_bullet("Track Order Status: Check order progress (Cart, Pending, Verified, PickedUp, or Cancelled).")
+    add_bullet("Order History: View all previously placed orders and receipts.")
 
-    add_h2("4.3 Technology Stack")
-    t_tech = doc.add_table(rows=12, cols=3)
-    t_tech.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_tech)
-    for i, h in enumerate(["Category", "Technology", "Purpose"]):
-        c = t_tech.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    p_r2 = doc.add_paragraph()
+    p_r2.paragraph_format.space_before = Pt(8)
+    p_r2.add_run("4.2 Non-Functional Requirements\n").font.bold = True
+    p_r2.runs[0].font.size = Pt(11)
+    p_r2.runs[0].font.color.rgb = COLOR_PRIMARY
+    add_bullet("Microservices Architecture: 5 separate services with isolated databases.")
+    add_bullet("Security: Protected APIs require valid JWT Bearer tokens with role claims.")
+    add_bullet("REST APIs: Synchronous communication between services using typed HTTP clients.")
+    add_bullet("Routing: YARP API Gateway acts as a single entry point for all client requests.")
+    add_bullet("Validation & Error Handling: Clear validation messages and standard HTTP status codes.")
+    add_bullet("Testing: Comprehensive NUnit unit tests and interactive testing via Swagger UI.")
 
-    tech_items = [
-        ("Programming Language", "C# 12", "Core object-oriented backend programming language with strong typing and async/await."),
-        ("Framework", "ASP.NET Core Web API", "High-performance REST API runtime for microservices endpoints."),
-        ("Runtime", ".NET 8 (LTS)", "Enterprise Long-Term Support runtime providing modern memory and compute optimizations."),
-        ("ORM & Data Access", "Entity Framework Core 8", "Object-Relational Mapping with Code-First modeling, LINQ queries, and migrations."),
-        ("Database", "Microsoft SQL Server 2022", "Relational database engine hosting 5 isolated physical/logical database catalogs."),
-        ("API Security", "JWT Bearer Authentication", "Stateless asymmetric authentication encoding user claims, email, and roles."),
-        ("Authorization", "Role-Based Access Control (RBAC)", "Restricts sensitive APIs to authorized roles (Admin or Doctor)."),
-        ("API Gateway", "YARP / Reverse Proxy", "Provides unified request routing, health checks, and cross-cutting security enforcement."),
-        ("API Documentation", "Swagger UI / OpenAPI 3.0", "Interactive browser-based API testing sandbox with JWT lock integration."),
-        ("Hosting / Runtime", "Kestrel / Native Process", "High-performance cross-platform self-hosted ASP.NET Core runtime."),
-        ("Shared Library", "PharmacyManagement.Common", "Shared NuGet/class library standardizing JWT, hashing, constants, and envelopes.")
+    p_r3 = doc.add_paragraph()
+    p_r3.paragraph_format.space_before = Pt(8)
+    p_r3.add_run("4.3 Technology Stack\n").font.bold = True
+    p_r3.runs[0].font.size = Pt(11)
+    p_r3.runs[0].font.color.rgb = COLOR_PRIMARY
+
+    tbl_tech = doc.add_table(rows=11, cols=3)
+    tbl_tech.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_tech)
+    tbl_tech.cell(0, 0).width = Inches(1.8)
+    tbl_tech.cell(0, 1).width = Inches(2.2)
+    tbl_tech.cell(0, 2).width = Inches(2.5)
+    set_cell_background(tbl_tech.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_tech.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_tech.cell(0, 2), COLOR_HEADER_BG)
+    tbl_tech.cell(0, 0).paragraphs[0].add_run("Category").font.bold = True
+    tbl_tech.cell(0, 1).paragraphs[0].add_run("Technology").font.bold = True
+    tbl_tech.cell(0, 2).paragraphs[0].add_run("Purpose").font.bold = True
+
+    tech_data = [
+        ("Language", "C# 12", "Primary programming language for all services."),
+        ("Framework", "ASP.NET Core Web API", "Framework used to build RESTful microservice APIs."),
+        ("Runtime", ".NET 10", "Cross-platform runtime to build and run the services."),
+        ("ORM", "Entity Framework Core 8", "Maps C# models to SQL tables using Code-First approach."),
+        ("Database", "Microsoft SQL Server 2022", "Hosts 5 separate databases for microservice data isolation."),
+        ("Security", "JWT Bearer & PBKDF2", "Authenticates users and hashes passwords securely."),
+        ("Authorization", "Role-Based Access (RBAC)", "Restricts API access based on Admin and Doctor roles."),
+        ("API Gateway", "YARP", "Routes incoming requests to the appropriate microservices."),
+        ("API Documentation", "Swagger / OpenAPI 3.0", "Documents and interactively tests backend APIs."),
+        ("Testing", "NUnit & Moq", "Automated unit test suite verifying service layer business logic.")
     ]
-    for r_idx, (cat, tech, purp) in enumerate(tech_items, start=1):
-        c0 = t_tech.cell(r_idx, 0)
-        c1 = t_tech.cell(r_idx, 1)
-        c2 = t_tech.cell(r_idx, 2)
-        set_cell_margins(c0)
-        set_cell_margins(c1)
-        set_cell_margins(c2)
-        r0 = c0.paragraphs[0].add_run(cat)
-        r0.font.name = "Calibri"
-        r0.font.size = Pt(9)
-        r0.font.bold = True
-        r1 = c1.paragraphs[0].add_run(tech)
-        r1.font.name = "Calibri"
-        r1.font.size = Pt(9)
-        r2 = c2.paragraphs[0].add_run(purp)
-        r2.font.name = "Calibri"
-        r2.font.size = Pt(9)
+    for idx, (c1, c2, c3) in enumerate(tech_data, start=1):
+        tbl_tech.cell(idx, 0).width = Inches(1.8)
+        tbl_tech.cell(idx, 1).width = Inches(2.2)
+        tbl_tech.cell(idx, 2).width = Inches(2.5)
+        set_cell_margins(tbl_tech.cell(idx, 0))
+        set_cell_margins(tbl_tech.cell(idx, 1))
+        set_cell_margins(tbl_tech.cell(idx, 2))
+        tbl_tech.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_tech.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_tech.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 5.0: DESIGN PATTERNS
-    # =========================================================================
-    add_h1("5.0 Design Patterns")
-    t_pat = doc.add_table(rows=9, cols=2)
-    t_pat.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_pat)
-    for i, h in enumerate(["Name", "Description"]):
-        c = t_pat.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    # --------------------------------------------------------------------------
+    # 5.0 DESIGN PATTERNS
+    # --------------------------------------------------------------------------
+    add_section_header("5.0 Design Patterns")
+    add_body_p("The architecture uses standard enterprise design patterns to maintain clean separation of concerns:")
 
-    pat_rows = [
-        ("Microservices Architecture", "Decomposes the system into 5 cohesive, independently deployable services organized around business domains: Auth, Inventory, Order, Payment, and SaleReport."),
-        ("Database-Per-Service", "Each microservice exclusively owns its database schema. Direct cross-database SQL queries are forbidden; data is shared strictly via typed HTTP REST APIs."),
-        ("Layered Architecture (Internal MVC)", "Internally, each microservice separates concerns into Controllers (API handling), Services (domain logic), and Repositories (EF Core LINQ data access)."),
-        ("Repository Pattern", "Abstracts data-access logic from domain services, enabling testability and decoupling business algorithms from database access technologies."),
-        ("Dependency Injection (DI)", "ASP.NET Core DI container manages service lifecycles (Scoped DbContexts, Repositories, and Services), promoting loose coupling and testability."),
-        ("DTO (Data Transfer Object) Pattern", "Dedicated request and response DTOs prevent over-posting, hide internal database primary keys where appropriate, and enforce request validation."),
-        ("API Gateway Pattern", "Centralizes client entry points, handles request forwarding, rate limiting, and decouples internal service ports from client consumers."),
-        ("Transactional Outbox / Idempotency", "Payment and stock operations use unique transaction references and idempotent validation to prevent double-charging or duplicate deductions.")
+    tbl_pat = doc.add_table(rows=9, cols=2)
+    tbl_pat.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_pat)
+    tbl_pat.cell(0, 0).width = Inches(2.2)
+    tbl_pat.cell(0, 1).width = Inches(4.3)
+    set_cell_background(tbl_pat.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_pat.cell(0, 1), COLOR_HEADER_BG)
+    tbl_pat.cell(0, 0).paragraphs[0].add_run("Name").font.bold = True
+    tbl_pat.cell(0, 1).paragraphs[0].add_run("Description").font.bold = True
+
+    pat_data = [
+        ("REST API", "HTTP-based REST APIs are used for client calls and service-to-service communication."),
+        ("Microservices Architecture", "The system is divided into five independent services: Auth, Inventory, Order, Payment, and SaleReport."),
+        ("Layered Architecture", "Each microservice follows a Controller, Service, and Repository structure to separate concerns."),
+        ("Repository Pattern", "Repositories handle database access, keeping data logic separate from business rules."),
+        ("Dependency Injection", "Services and repositories are injected via built-in DI containers for testability."),
+        ("Database per Service", "Each microservice owns its private database. No direct cross-service SQL joins are allowed."),
+        ("API Gateway Pattern", "YARP provides a centralized entry point and routes client requests to microservices."),
+        ("DTO Pattern", "Request and response DTOs define clean API contracts and prevent over-posting.")
     ]
-    for r_idx, (name, desc) in enumerate(pat_rows, start=1):
-        c0 = t_pat.cell(r_idx, 0)
-        c1 = t_pat.cell(r_idx, 1)
-        set_cell_margins(c0)
-        set_cell_margins(c1)
-        r0 = c0.paragraphs[0].add_run(name)
-        r0.font.name = "Calibri"
-        r0.font.size = Pt(9)
-        r0.font.bold = True
-        r1 = c1.paragraphs[0].add_run(desc)
-        r1.font.name = "Calibri"
-        r1.font.size = Pt(9)
+    for idx, (p_name, p_desc) in enumerate(pat_data, start=1):
+        tbl_pat.cell(idx, 0).width = Inches(2.2)
+        tbl_pat.cell(idx, 1).width = Inches(4.3)
+        set_cell_margins(tbl_pat.cell(idx, 0))
+        set_cell_margins(tbl_pat.cell(idx, 1))
+        tbl_pat.cell(idx, 0).paragraphs[0].add_run(p_name).font.size = Pt(9.5)
+        tbl_pat.cell(idx, 1).paragraphs[0].add_run(p_desc).font.size = Pt(9.5)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 6.0: FLOW DIAGRAM
-    # =========================================================================
-    add_h1("6.0 Flow Diagram")
+    # --------------------------------------------------------------------------
+    # 6.0 FLOW DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("6.0 Flow Diagram")
     flow_img = os.path.join(DIAGRAMS_DIR, "04_Flow_Diagram.jpg")
     if os.path.exists(flow_img):
         doc.add_picture(flow_img, width=Inches(5.4))
-    add_h2("Description")
-    add_body(
-        "The flow diagram models the end-to-end operational execution of the Pharmacy Management System across both Admin "
-        "and Doctor / Customer roles. Execution begins at the START pill with user registration and authentication. "
-        "Upon successful credential verification, a decision diamond evaluates the user's role: "
-        "Admin / Owner branches to inventory procurement, formulary maintenance, order validation, order verification, counter "
-        "handover (PickedUp), and financial report generation. "
-        "The Doctor User / Customer branches to drug catalog browsing, verifying live quantities and expiry dates, selecting "
-        "medications, and placing prescription orders."
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 6.0 – Operational Flow Diagram")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d6 = doc.add_paragraph()
+    p_d6.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The flow diagram shows the operational steps for Admin and Doctor users. A user signs up or logs in and receives a JWT token. "
+        "Based on their role:\n"
+        "• Admins manage drugs, update supplier inventory, review doctor orders, verify orders, mark orders as picked up, and review sales reports.\n"
+        "• Doctors browse available medicines, add items to cart, place orders, and proceed to payment simulation.\n"
+        "If payment succeeds, the order is placed in Pending status for admin verification. "
+        "If payment fails, the system shows an error and releases any reserved medicine stock."
     )
-    add_body(
-        "The central processing pipeline models transactional coordination: verifying stock levels, creating the order record in "
-        "OrderDB, executing atomic stock decrements in InventoryDB, computing itemized totals, and executing payment checkout. "
-        "A Payment Successful? decision handles branching: if successful, the order transitions to Verified, generates an invoice, "
-        "and prepares for counter collection (PickedUp). If payment fails, the system executes the Payment Failed Container "
-        "workflow: displaying failure diagnostics, updating the order to PaymentFailed, and either retrying checkout or cancelling the "
-        "order and restoring reserved stock before reaching END."
-    )
+
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 7.0: USE CASE DIAGRAM
-    # =========================================================================
-    add_h1("7.0 Use Case Diagram")
+    # --------------------------------------------------------------------------
+    # 7.0 USE CASE DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("7.0 Use Case Diagram")
     usecase_img = os.path.join(DIAGRAMS_DIR, "02_Use_Case_Diagram.jpg")
     if os.path.exists(usecase_img):
         doc.add_picture(usecase_img, width=Inches(6.5))
-    add_h2("Description")
-    add_body(
-        "The use case diagram illustrates the functional interactions between the two primary actors—Admin and Doctor—and "
-        "the Pharmacy Management System boundary. Both actors associate with the foundational Login / Authenticate use case, "
-        "which issues role-bearing JWT tokens governing downstream access."
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 7.0 – Use Case Diagram")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d7 = doc.add_paragraph()
+    p_d7.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The use case diagram highlights the interactions between the two primary actors (Doctor and Admin) and the Pharmacy Management System.\n"
+        "• The Doctor registers, logs in, browses medicines, places prescription orders, simulates payments, and tracks order status.\n"
+        "• The Admin manages the drug catalog, handles supplier stock inwarding, verifies incoming doctor orders, marks completed orders as picked up, and views financial reports. "
+        "User registration and login are shared by both roles."
     )
-    add_body(
-        "Admin Actor (12 Use Cases): Full administrative control encompassing User Management, Drug Formularies (Add/Update/Delete), "
-        "Supplier Management, Stock Inwarding, Viewing All Doctor Orders, Validating Order Line Items, Verifying Orders (Pending -> Verified), "
-        "Moving Orders to PickedUp Section, Viewing PickedUp Orders, Generating Financial Sales Reports, Downloading CSV Spreadsheets, and "
-        "Printing Formatted Receipts."
-    )
-    add_body(
-        "Doctor Actor (7 Use Cases): Clinical user actions including Doctor Signup/Login, Browsing Drug Catalogs, Checking Expiry Dates "
-        "& Quantities, Placing Medication Orders, Viewing Personal Order Histories, Tracking Order Status (Cart -> Pending -> Verified -> PickedUp), "
-        "and Submitting Online Payments."
-    )
-    add_body(
-        "The diagram explicitly defines core workflow relationships: placing an order <<includes>> Managing Order Lifecycle, "
-        "which in turn <<includes>> Deducting Drug Stock Atomically, Processing 1:1 Payment, and Generating Itemized Invoices, "
-        "with an <<extend>> association for Order Cancellation upon stock exhaustion."
-    )
+
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 8.0: ARCHITECTURE DIAGRAM
-    # =========================================================================
-    add_h1("8.0 Architecture Diagram")
+    # --------------------------------------------------------------------------
+    # 8.0 ARCHITECTURE DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("8.0 Architecture Diagram")
     arch_img = os.path.join(DIAGRAMS_DIR, "01_Solution_Architecture_Diagram.jpg")
     if os.path.exists(arch_img):
         doc.add_picture(arch_img, width=Inches(6.5))
-    add_h2("Description")
-    add_body(
-        "The architecture diagram represents the distributed microservices topology of the Pharmacy Management System. "
-        "Clients—including the interactive Swagger UI, Web clients, and point-of-sale terminals—interact with the backend through an "
-        "API Gateway (YARP / Reverse Proxy). The Gateway centralizes request routing, load balancing, SSL termination, and rate limiting."
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 8.0 – Solution Architecture Diagram")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d8 = doc.add_paragraph()
+    p_d8.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The architecture diagram represents the layered structure of the system:\n"
+        "1. Presentation Layer: Client applications and Swagger UI submit HTTP requests.\n"
+        "2. Application Layer: The YARP API Gateway routes incoming requests to five microservices: Auth Service, Inventory Service, Order Service, Payment Service, and SaleReport Service.\n"
+        "3. Data Layer: Each microservice manages its own private SQL database (User DB, Inventory DB, Order DB, Payment DB, SaleReport DB). Services communicate using REST APIs."
     )
-    add_body(
-        "The core domain comprises five independent ASP.NET Core Web API microservices:\n"
-        "1. Auth Service (Port 5001): Manages user registrations, PBKDF2 credential verification, and asymmetric JWT issuance.\n"
-        "2. Inventory Service (Port 5002): Manages the pharmaceutical formulary, certified suppliers, stock inwarding, and atomic deductions.\n"
-        "3. Order Service (Port 5003): Coordinates doctor orders, order item lines, admin verification, and counter collection handovers.\n"
-        "4. Payment Service (Port 5004): Processes multi-method checkouts under a strict 1:1 unique order constraint.\n"
-        "5. SaleReport Service (Port 5005): Aggregates financial performance, calculating gross revenue, cost of goods sold, and net profit."
-    )
-    add_body(
-        "Each service maintains its dedicated Microsoft SQL Server database. Cross-cutting utilities—including JWT handlers, password hashing, "
-        "and standard response envelopes—are centralized within the shared PharmacyManagement.Common class library."
-    )
+
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 9.0: ENTITY-RELATIONSHIP (ER) DIAGRAM
-    # =========================================================================
-    add_h1("9.0 Entity-Relationship Diagram")
+    # --------------------------------------------------------------------------
+    # 9.0 ENTITY-RELATIONSHIP DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("9.0 Entity-Relationship Diagram")
     er_img = os.path.join(DIAGRAMS_DIR, "05_ER_Diagram.jpg")
     if os.path.exists(er_img):
         doc.add_picture(er_img, width=Inches(6.5))
-    add_h2("Description")
-    add_body(
-        "The Entity-Relationship (ER) diagram defines the data models and cardinalities across the five microservices. "
-        "In strict adherence to microservice isolation, physical foreign keys with database-level cascading rules exist exclusively "
-        "within individual service boundaries, while cross-service associations operate as logical foreign keys resolved via REST APIs:"
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 9.0 – Entity-Relationship Diagram (Database-Per-Service Boxes)")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d9 = doc.add_paragraph()
+    p_d9.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The ER diagram represents the data entities and attributes organized into separate boxes for each database:\n"
+        "• User DB: Contains the User entity with login, role, and contact attributes.\n"
+        "• Inventory DB: Contains Drugs, Suppliers, and Inventory entities with supply and stock relationships.\n"
+        "• Order DB: Contains Orders and OrderItems entities tracking prescription orders.\n"
+        "• Payment DB: Contains Payments tracking simulated checkout transactions.\n"
+        "• SaleReport DB: Standalone service containing SaleReports for revenue and profit summaries.\n"
+        "Physical foreign keys exist only within the same database. Relationships across databases are logical references verified through REST APIs."
     )
-    add_bullet("A Doctor user in AuthDB can place multiple medication orders. Orders.DoctorID logically references Users.UserId.", "• User to Order (1:M): ")
-    add_bullet("A physical database foreign key with ON DELETE CASCADE in OrderDB ensuring complete cleanup of child line items.", "• Order to OrderItem (1:M): ")
-    add_bullet("OrderItems.DrugId logically references Drugs.DrugId in InventoryDB, storing an immutable snapshot of DrugName for historical receipt accuracy.", "• Drug to OrderItem (1:M): ")
-    add_bullet("Physical foreign keys in InventoryDB tracking wholesale stock receipts with purchase prices.", "• Supplier to Inventory (1:M) & Drug to Inventory (1:M): ")
-    add_bullet("A strict one-to-one relationship enforced by a UNIQUE INDEX on Payments.OrderId in PaymentDB.", "• Order to Payment (1:1): ")
-    add_bullet("A standalone reporting entity aggregating financial totals across order and inventory data without locking transaction tables.", "• SaleReport (Standalone): ")
+
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 10.0: DATABASE DIAGRAM
-    # =========================================================================
-    add_h1("10.0 Database Diagram")
+    # --------------------------------------------------------------------------
+    # 10.0 DATABASE DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("10.0 Database Diagram")
     db_img = os.path.join(DIAGRAMS_DIR, "06_Database_Schema_Diagram.jpg")
     if os.path.exists(db_img):
         doc.add_picture(db_img, width=Inches(6.5))
-    add_h2("Description")
-    add_body(
-        "The database diagram illustrates the Database-per-Service physical schema design implemented in Microsoft SQL Server 2022. "
-        "The system partitions data into five dedicated databases: Pharmacy_UserDB, Pharmacy_InventoryDB, Pharmacy_OrderDB, "
-        "Pharmacy_PaymentDB, and Pharmacy_SaleReportDB."
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 10.0 – Database Schema Diagram")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d10 = doc.add_paragraph()
+    p_d10.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The database diagram illustrates the physical tables, column data types, and primary/foreign keys across all five databases.\n"
+        "Key tables include Users (credentials and roles), Drugs (pricing, quantities, and minimum stock alerts), Suppliers (vendor contacts), "
+        "Inventory (purchase price and supply dates), Orders and OrderItems (prescription line items), Payments (1:1 unique payment records), "
+        "and SaleReports (financial totals).\n"
+        "A unique index on Payment.OrderId prevents duplicate payments for the same order."
     )
-    add_body(
-        "Each table definition specifies primary clustered keys, non-clustered indexes on search predicates (such as Users.Role, Drugs.IsAvailable, "
-        "Orders.Status), and check constraints. All monetary values (e.g. Drugs.Price, Inventory.PurchasePrice, Orders.TotalAmount, Payments.Amount, "
-        "SaleReports.TotalRevenue, SaleReports.Profit) strictly employ DECIMAL(18,2) to prevent floating-point rounding errors. All audit and transaction "
-        "timestamps utilize DATETIME2(7) in UTC format."
+
+    doc.add_page_break()
+
+    # --------------------------------------------------------------------------
+    # 11.0 CLASS DIAGRAM
+    # --------------------------------------------------------------------------
+    add_section_header("11.0 Class Diagram")
+    cls_img = os.path.join(DIAGRAMS_DIR, "03_Class_Diagram.jpg")
+    if os.path.exists(cls_img):
+        doc.add_picture(cls_img, width=Inches(6.5))
+        p_cap = doc.add_paragraph()
+        p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r_cap = p_cap.add_run("Figure 11.0 – Domain Class Diagram")
+        r_cap.font.size = Pt(9)
+        r_cap.font.italic = True
+        r_cap.font.color.rgb = COLOR_MUTED
+
+    p_d11 = doc.add_paragraph()
+    p_d11.add_run("Description\n").font.bold = True
+    add_body_p(
+        "The class diagram illustrates the object-oriented domain models and their responsibilities:\n"
+        "• User: Handles authentication, signup, and role identification.\n"
+        "• Drug: Represents medicine catalog data, selling price, stock levels, and expiry date.\n"
+        "• Supplier: Manages supplier profiles and vendor associations.\n"
+        "• Order & OrderItem: Tracks prescription lines, quantities, unit prices, and status updates.\n"
+        "• Payment: Simulates checkout transactions with 1:1 order enforcement.\n"
+        "• SaleReport: Aggregates revenue, purchase costs, and profit calculations.\n"
+        "Dashed lines indicate relationships such as 'places', 'manages', 'supplies', 'contains', and 'paid by'."
     )
-    add_body(
-        "Database scripts are fully scripted in scripts/InitDatabases.sql with idempotent guards (IF NOT EXISTS), enabling automated database creation "
-        "and seed data provisioning on any local SQL Server developer environment."
-    )
-    doc.add_page_break()
-
-    # =========================================================================
-    # SECTION 11.0: SEQUENCE DIAGRAM
-    # =========================================================================
-    add_h1("11.0 Sequence Diagram")
-    seq_img = os.path.join(DIAGRAMS_DIR, "03_Sequence_Diagram.jpg")
-    if os.path.exists(seq_img):
-        doc.add_picture(seq_img, width=Inches(6.5))
-    add_h2("Description")
-    add_body(
-        "The sequence diagram details the runtime interaction between the Doctor User, Admin User, API Gateway, and all "
-        "five microservices across the complete order fulfillment and financial reporting lifecycle across 24 synchronous REST messages:"
-    )
-    add_bullet("Doctor authenticates with email/password; AuthService validates credentials against AuthDB and returns a signed JWT Bearer Token encoding the Doctor role claim.", "1. Authentication (Steps 1–4): ")
-    add_bullet("Doctor passes the token to query active medications; InventoryService queries InventoryDB and returns available drugs with prices.", "2. Catalog Browsing (Steps 5–7): ")
-    add_bullet("Doctor submits an order. OrderService stages the order in Pending status and calls InventoryService to decrement stock atomically. InventoryService verifies availability, deducts quantities, and returns success.", "3. Order Placement & Stock Decrement (Steps 8–12): ")
-    add_bullet("Doctor triggers payment; PaymentService validates the 1:1 constraint, persists the payment record, and returns a unique transaction reference.", "4. Payment Processing (Steps 13–15): ")
-    add_bullet("Admin queries all doctor orders, inspects order line items, validates stock, updates status to Verified, and marks final handover in PickedUp.", "5. Admin Verification & Handover (Steps 16–22): ")
-    add_bullet("Admin requests sales reporting; SaleReportService aggregates verified orders, calculates net profit, and returns a financial summary.", "6. Sales Analytics (Steps 23–24): ")
-    doc.add_page_break()
-
-    # =========================================================================
-    # SECTION 12.0: SOLUTION STEPS
-    # =========================================================================
-    add_h1("12.0 Solution Steps")
-    add_h2("12.1 Customer / Doctor and Admin Registration and Login")
-    add_bullet("The user submits registration details (Name, Contact, Email, Password, Role) to AuthService.")
-    add_bullet("AuthService verifies email uniqueness in Pharmacy_UserDB and hashes the password using PBKDF2 with HMAC-SHA256 (100,000 iterations).")
-    add_bullet("Upon login, AuthService validates credentials and generates a cryptographically signed JWT token containing UserId, Email, and Role claims.")
-    add_bullet("The client provides the JWT token via the Authorization: Bearer <token> header for all protected endpoints in Swagger UI.")
-
-    add_h2("12.2 Admin Manages Drugs & Pricing")
-    add_bullet("Admin provides the JWT token to access formulary endpoints on InventoryService (Port 5002).")
-    add_bullet("Admin creates new drugs by specifying Drug Name, Description, Selling Price, Expiry Date, and Initial Quantity.")
-    add_bullet("Admin updates existing medications or deletes discontinued drugs from Pharmacy_InventoryDB.")
-
-    add_h2("12.3 Admin Manages Suppliers & Stock Inventory")
-    add_bullet("Admin registers verified pharmaceutical distributors by submitting Supplier Name, Contact Email, Phone, and Address.")
-    add_bullet("When new stock arrives, Admin creates an Inventory inward record associating SupplierId, DrugId, PurchasePrice, and QuantityAdded.")
-    add_bullet("InventoryService increments Drugs.Quantity and updates Drugs.IsAvailable = true automatically.")
-
-    add_h2("12.4 Doctor Searches & Views Available Drugs")
-    add_bullet("Doctor queries GET /api/drugs?availableOnly=true to view only in-stock and non-expired medications.")
-    add_bullet("InventoryService runs LINQ queries filtering IsAvailable == true and Quantity > 0, returning catalog items with selling prices.")
-
-    add_h2("12.5 Doctor Buys Drugs (Places Order)")
-    add_bullet("Doctor selects one or more medications and submits POST /api/orders with an array of DrugId and Quantity.")
-    add_bullet("OrderService extracts DoctorID from the JWT token and verifies requested drugs.")
-    add_bullet("OrderService communicates via HTTP with InventoryService to atomically decrement stock.")
-    add_bullet("OrderService computes TotalAmount = Sum(Quantity * UnitPrice) and saves the order in Pending status.")
-
-    add_h2("12.6 Payment Processing")
-    add_bullet("Doctor submits payment details to PaymentService (POST /api/payments) specifying OrderId, Amount, and PaymentMethod (CreditCard, UPI, NetBanking, Cash).")
-    add_bullet("PaymentService verifies that the order has no prior payment, enforcing the 1:1 payment rule.")
-    add_bullet("PaymentService generates a unique TransactionReference (e.g., TXN-A83F91B2C4D5), persists the record in Pharmacy_PaymentDB, and marks PaymentStatus = Completed.")
-
-    add_h2("12.7 Admin Order Verification & Pickup Handover")
-    add_bullet("Admin accesses GET /api/orders to inspect orders placed by all doctors across the hospital/clinic.")
-    add_bullet("Admin reviews the line items, confirms stock validity, and calls PUT /api/orders/{id}/verify, setting Status = Verified.")
-    add_bullet("When the doctor or patient arrives at the pharmacy dispensing counter, Admin calls PUT /api/orders/{id}/pickup, transferring the order to the PickedUp section.")
-
-    add_h2("12.8 Admin Sales Report Generation, CSV Download & Print")
-    add_bullet("Admin accesses SaleReportService (Port 5005) and calls POST /api/salereports/generate with a range (Daily, Weekly, Monthly, or Yearly).")
-    add_bullet("SaleReportService aggregates verified orders, calculates Gross Revenue, aggregates wholesale COGS purchase costs from Inventory, and computes net Profit.")
-    add_bullet("Admin downloads the report as an RFC-4180 compliant CSV spreadsheet (GET /api/salereports/{id}/download) or views a formatted ASCII receipt (GET /api/salereports/{id}/print).")
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 13.0: CLASSES NAMES
-    # =========================================================================
-    add_h1("13.0 Classes Names")
-    add_h2("Entities (Domain Models)")
-    t_m = doc.add_table(rows=9, cols=3)
-    t_m.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_m)
-    for i, h in enumerate(["S.No", "Class Name", "Description"]):
-        c = t_m.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
+    # --------------------------------------------------------------------------
+    # 12.0 SOLUTION STEPS
+    # --------------------------------------------------------------------------
+    add_section_header("12.0 Solution Steps")
+
+    steps_data = [
+        ("User Registration and Login", [
+            "The user submits registration information (name, email, phone number, password, and role).",
+            "Auth Service hashes the password securely using PBKDF2 and saves the user record in User DB.",
+            "The user logs in with valid email and password credentials.",
+            "Auth Service verifies the password hash and returns a signed JWT token containing user ID, email, and role."
+        ]),
+        ("Admin Manages Drugs and Suppliers", [
+            "The Admin logs in and sends the JWT token in the Authorization header.",
+            "The Admin creates, updates, or deletes medicines in the Inventory Service, setting selling price and minimum stock quantity.",
+            "The Admin adds suppliers and enters incoming medicine stock along with purchase price in the Inventory table.",
+            "Medicine catalog and stock data are saved in Inventory DB."
+        ]),
+        ("Doctor Searches Drugs and Adds to Cart", [
+            "The Doctor logs in and queries available medicines through the search endpoints.",
+            "Inventory Service returns active medicines that have sufficient stock.",
+            "The Doctor selects medicine items, specifies quantities, and adds them to the order cart."
+        ]),
+        ("Doctor Places Order and Simulates Payment", [
+            "The Doctor submits the order payload containing selected medicine items and quantities.",
+            "Order Service calls Inventory Service to verify availability and deduct medicine quantities.",
+            "Order Service creates the order record in Order DB with status 'Pending' and triggers payment.",
+            "Payment Service records the simulated transaction, assigns a unique transaction reference, and sets status to 'Completed'."
+        ]),
+        ("Admin Verifies Order and Marks PickedUp", [
+            "The Admin reviews pending orders submitted by doctors.",
+            "The Admin verifies prescription items and updates order status to 'Verified'.",
+            "When the medicines are collected, the Admin updates the status to 'PickedUp' in the pickup section."
+        ]),
+        ("Admin Generates and Downloads Sales Reports", [
+            "The Admin selects a reporting range (Daily, Weekly, Monthly, or Yearly).",
+            "SaleReport Service aggregates completed orders, calculates revenue, subtracts purchase costs to compute profit, and saves the report.",
+            "The Admin can view summary statistics or download the report as a CSV file."
+        ])
+    ]
+
+    for s_title, s_bullets in steps_data:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(6)
+        r = p.add_run(s_title)
         r.font.bold = True
-
-    model_rows = [
-        ("1", "User.cs", "Represents user accounts in AuthDB with UserId PK, Name, Email, PhoneNumber, PasswordHash, Role (Admin/Doctor), IsActive, and CreatedDate."),
-        ("2", "Drug.cs", "Represents formulary medications in InventoryDB with DrugId PK, Name, Description, Price (selling price), ExpiryDate, Quantity, and IsAvailable."),
-        ("3", "Supplier.cs", "Represents wholesale vendors in InventoryDB with SupplierId PK, SupplierName, Email, PhoneNumber, and Address."),
-        ("4", "Inventory.cs", "Represents stock inwarding batches in InventoryDB with InventoryId PK, SupplierId FK, DrugId FK, PurchasePrice, QuantityAdded, and StockReceivedDate."),
-        ("5", "Order.cs", "Represents orders in OrderDB with OrderId PK, DoctorID logical FK, OrderDate, TotalAmount, and Status (Cart/Pending/Verified/PickedUp)."),
-        ("6", "OrderItem.cs", "Represents line items in OrderDB with OrderItemId PK, OrderId FK, DrugId logical FK, DrugName snapshot, Quantity, and UnitPrice."),
-        ("7", "Payment.cs", "Represents payment records in PaymentDB with PaymentId PK, OrderId 1:1 unique FK, Amount, PaymentDate, PaymentMethod, PaymentStatus, and TransactionReference."),
-        ("8", "SaleReport.cs", "Represents financial reports in SaleReportDB with SaleReportId PK, ReportType (Daily/Weekly/Monthly/Yearly), FromDate, ToDate, TotalOrders, TotalRevenue, GeneratedDate, and Profit.")
-    ]
-    for r_idx, (sno, cname, desc) in enumerate(model_rows, start=1):
-        c0, c1, c2 = t_m.cell(r_idx, 0), t_m.cell(r_idx, 1), t_m.cell(r_idx, 2)
-        set_cell_margins(c0); set_cell_margins(c1); set_cell_margins(c2)
-        c0.paragraphs[0].add_run(sno).font.size = Pt(9)
-        r1 = c1.paragraphs[0].add_run(cname)
-        r1.font.bold = True
-        r1.font.size = Pt(9)
-        c2.paragraphs[0].add_run(desc).font.size = Pt(9)
-
-    add_h2("Controllers (API Layer)")
-    t_c = doc.add_table(rows=8, cols=3)
-    t_c.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_c)
-    for i, h in enumerate(["S.No", "Class Name", "Description"]):
-        c = t_c.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
-
-    ctrl_rows = [
-        ("1", "AuthController.cs", "Exposes user signup (/register), login (/login), and profile (/me) endpoints under JWT authentication."),
-        ("2", "DrugsController.cs", "Exposes catalog retrieval, filtering, and Admin CRUD operations (/api/drugs)."),
-        ("3", "SuppliersController.cs", "Exposes Admin CRUD management for certified wholesale pharmaceutical suppliers (/api/suppliers)."),
-        ("4", "InventoryController.cs", "Handles stock inwarding batches and inter-service atomic quantity deductions (/api/inventory)."),
-        ("5", "OrdersController.cs", "Handles doctor order placement, order verification, counter handover (PickedUp), and order retrieval (/api/orders)."),
-        ("6", "PaymentsController.cs", "Handles checkout transactions and enforces the 1:1 order payment rule (/api/payments)."),
-        ("7", "SaleReportsController.cs", "Handles report generation, range filtering, CSV spreadsheet download, and printable formatting (/api/salereports).")
-    ]
-    for r_idx, (sno, cname, desc) in enumerate(ctrl_rows, start=1):
-        c0, c1, c2 = t_c.cell(r_idx, 0), t_c.cell(r_idx, 1), t_c.cell(r_idx, 2)
-        set_cell_margins(c0); set_cell_margins(c1); set_cell_margins(c2)
-        c0.paragraphs[0].add_run(sno).font.size = Pt(9)
-        r1 = c1.paragraphs[0].add_run(cname)
-        r1.font.bold = True
-        r1.font.size = Pt(9)
-        c2.paragraphs[0].add_run(desc).font.size = Pt(9)
+        r.font.size = Pt(11)
+        r.font.color.rgb = COLOR_PRIMARY
+        for b in s_bullets:
+            add_bullet(b)
 
     doc.add_page_break()
 
-    add_h2("Services (Business Logic Layer)")
-    t_s = doc.add_table(rows=9, cols=3)
-    t_s.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_s)
-    for i, h in enumerate(["S.No", "Class Name", "Description"]):
-        c = t_s.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    # --------------------------------------------------------------------------
+    # 13.0 CLASSES NAMES
+    # --------------------------------------------------------------------------
+    add_section_header("13.0 Classes Names")
 
-    svc_rows = [
-        ("1", "IAuthService.cs / AuthService.cs", "Implements user registration, duplicate email validation, credential checking, and JWT issuance."),
-        ("2", "IDrugService.cs / DrugService.cs", "Implements drug validation, price verification, stock checks, and availability flags."),
-        ("3", "ISupplierService.cs / SupplierService.cs", "Implements vendor registration, email/phone format checks, and supplier cataloging."),
-        ("4", "IInventoryService.cs / InventoryService.cs", "Coordinates stock inwarding batches, updates drug balances, and executes atomic stock decrements."),
-        ("5", "IOrderService.cs / OrderService.cs", "Validates line items, invokes Inventory Service via HTTP client, computes totals, and manages order lifecycle."),
-        ("6", "IPaymentService.cs / PaymentService.cs", "Validates order payment eligibility, checks 1:1 uniqueness constraint, and generates transaction codes."),
-        ("7", "ISaleReportService.cs / SaleReportService.cs", "Aggregates order data, computes net profit over purchase costs, and formats CSV and print layouts."),
-        ("8", "JwtTokenGenerator.cs / PasswordHasher.cs", "Common security primitives implementing HMAC-SHA256 JWT generation and PBKDF2 salt hashing.")
+    # Table 1: Entities (Models)
+    p_t1 = doc.add_paragraph()
+    p_t1.add_run("Entities (Models)\n").font.bold = True
+    p_t1.runs[0].font.size = Pt(11)
+
+    tbl_e = doc.add_table(rows=9, cols=3)
+    tbl_e.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_e)
+    tbl_e.cell(0, 0).width = Inches(0.6)
+    tbl_e.cell(0, 1).width = Inches(2.2)
+    tbl_e.cell(0, 2).width = Inches(3.7)
+    set_cell_background(tbl_e.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_e.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_e.cell(0, 2), COLOR_HEADER_BG)
+    tbl_e.cell(0, 0).paragraphs[0].add_run("S.No").font.bold = True
+    tbl_e.cell(0, 1).paragraphs[0].add_run("Class Name").font.bold = True
+    tbl_e.cell(0, 2).paragraphs[0].add_run("Description").font.bold = True
+
+    e_data = [
+        ("1", "User.cs", "Represents user account information, password hash, and assigned role (Admin or Doctor)."),
+        ("2", "Drug.cs", "Represents medicine details, description, selling price, expiry date, quantity, and minimum stock limit."),
+        ("3", "Supplier.cs", "Represents supplier contact information, email, phone number, and address."),
+        ("4", "Inventory.cs", "Represents incoming stock shipments, purchase prices, supply dates, and supplier links."),
+        ("5", "Order.cs", "Represents prescription orders placed by doctors, order date, total amount, and status."),
+        ("6", "OrderItem.cs", "Represents individual medicine line items belonging to an order with unit price."),
+        ("7", "Payment.cs", "Represents simulated payment records with 1:1 order linking and transaction references."),
+        ("8", "SaleReport.cs", "Represents financial sales reports, total order counts, revenue, and profit calculations.")
     ]
-    for r_idx, (sno, cname, desc) in enumerate(svc_rows, start=1):
-        c0, c1, c2 = t_s.cell(r_idx, 0), t_s.cell(r_idx, 1), t_s.cell(r_idx, 2)
-        set_cell_margins(c0); set_cell_margins(c1); set_cell_margins(c2)
-        c0.paragraphs[0].add_run(sno).font.size = Pt(9)
-        r1 = c1.paragraphs[0].add_run(cname)
-        r1.font.bold = True
-        r1.font.size = Pt(9)
-        c2.paragraphs[0].add_run(desc).font.size = Pt(9)
+    for idx, (c1, c2, c3) in enumerate(e_data, start=1):
+        tbl_e.cell(idx, 0).width = Inches(0.6)
+        tbl_e.cell(idx, 1).width = Inches(2.2)
+        tbl_e.cell(idx, 2).width = Inches(3.7)
+        set_cell_margins(tbl_e.cell(idx, 0))
+        set_cell_margins(tbl_e.cell(idx, 1))
+        set_cell_margins(tbl_e.cell(idx, 2))
+        tbl_e.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_e.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_e.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
 
-    add_h2("Repositories (Data Access Layer & EF Core DbContexts)")
-    t_r = doc.add_table(rows=8, cols=3)
-    t_r.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_r)
-    for i, h in enumerate(["S.No", "Class Name", "Description"]):
-        c = t_r.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    doc.add_paragraph().paragraph_format.space_before = Pt(8)
 
-    repo_rows = [
-        ("1", "UserRepository.cs / AuthDbContext.cs", "Executes LINQ queries against Pharmacy_UserDB for user authentication and profile retrieval."),
-        ("2", "DrugRepository.cs / InventoryDbContext.cs", "Executes LINQ queries against Pharmacy_InventoryDB for drug CRUD and atomic decrement updates."),
-        ("3", "SupplierRepository.cs", "Executes LINQ queries for pharmaceutical vendor persistence in Pharmacy_InventoryDB."),
-        ("4", "InventoryRepository.cs", "Persists stock inward batches and links suppliers with drugs in Pharmacy_InventoryDB."),
-        ("5", "OrderRepository.cs / OrderDbContext.cs", "Persists orders and child order items with cascading integrity in Pharmacy_OrderDB."),
-        ("6", "PaymentRepository.cs / PaymentDbContext.cs", "Persists payment transactions and enforces unique index on OrderId in Pharmacy_PaymentDB."),
-        ("7", "SaleReportRepository.cs / SaleReportDbContext.cs", "Persists aggregated financial reports and date-range queries in Pharmacy_SaleReportDB.")
+    # Table 2: Controllers (API Layer)
+    p_t2 = doc.add_paragraph()
+    p_t2.add_run("Controllers (API Layer)\n").font.bold = True
+    p_t2.runs[0].font.size = Pt(11)
+
+    tbl_c = doc.add_table(rows=8, cols=3)
+    tbl_c.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_c)
+    tbl_c.cell(0, 0).width = Inches(0.6)
+    tbl_c.cell(0, 1).width = Inches(2.2)
+    tbl_c.cell(0, 2).width = Inches(3.7)
+    set_cell_background(tbl_c.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_c.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_c.cell(0, 2), COLOR_HEADER_BG)
+    tbl_c.cell(0, 0).paragraphs[0].add_run("S.No").font.bold = True
+    tbl_c.cell(0, 1).paragraphs[0].add_run("Class Name").font.bold = True
+    tbl_c.cell(0, 2).paragraphs[0].add_run("Description").font.bold = True
+
+    c_data = [
+        ("1", "AuthController.cs", "Handles user registration, login, and profile retrieval APIs."),
+        ("2", "DrugsController.cs", "Handles drug catalog search, drug creation, updates, and low-stock alerts."),
+        ("3", "SuppliersController.cs", "Handles supplier registration, retrieval, and profile updates."),
+        ("4", "InventoryController.cs", "Handles stock inward shipments, batch updates, and stock deduction."),
+        ("5", "OrdersController.cs", "Handles order creation, status tracking, admin verification, and pickup handover."),
+        ("6", "PaymentsController.cs", "Handles checkout payment simulation and transaction verification."),
+        ("7", "SaleReportsController.cs", "Handles sales report generation, profit analytics, and CSV download APIs.")
     ]
-    for r_idx, (sno, cname, desc) in enumerate(repo_rows, start=1):
-        c0, c1, c2 = t_r.cell(r_idx, 0), t_r.cell(r_idx, 1), t_r.cell(r_idx, 2)
-        set_cell_margins(c0); set_cell_margins(c1); set_cell_margins(c2)
-        c0.paragraphs[0].add_run(sno).font.size = Pt(9)
-        r1 = c1.paragraphs[0].add_run(cname)
-        r1.font.bold = True
-        r1.font.size = Pt(9)
-        c2.paragraphs[0].add_run(desc).font.size = Pt(9)
+    for idx, (c1, c2, c3) in enumerate(c_data, start=1):
+        tbl_c.cell(idx, 0).width = Inches(0.6)
+        tbl_c.cell(idx, 1).width = Inches(2.2)
+        tbl_c.cell(idx, 2).width = Inches(3.7)
+        set_cell_margins(tbl_c.cell(idx, 0))
+        set_cell_margins(tbl_c.cell(idx, 1))
+        set_cell_margins(tbl_c.cell(idx, 2))
+        tbl_c.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_c.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_c.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 14.0: VALIDATIONS
-    # =========================================================================
-    add_h1("14.0 Validations")
-    validations = [
-        ("User Registration Validations: ", "Strict email format validation, duplicate email checking, minimum 6-character password requirements, and mandatory valid Role (Admin or Doctor)."),
-        ("JWT Security Token Verification: ", "Validates cryptographic HMAC-SHA256 signature, issuer (PharmacyManagementAuthService), audience (PharmacyManagementMicroservices), non-expiration, and valid Role claims on protected endpoints."),
-        ("Role-Based Access Control: ", "Enforces endpoint policies ensuring only Admin users can modify drugs, suppliers, or verify orders, and only Doctor users can initiate order placement."),
-        ("Drug Pricing & Expiry Validation: ", "Requires Price > 0, non-negative Quantity >= 0, and ExpiryDate > DateTime.UtcNow during drug creation and order submission."),
-        ("Supplier Profile Validation: ", "Enforces valid email syntax, valid international phone number format, and non-empty physical supplier addresses."),
-        ("Stock Inwarding Validation: ", "Verifies that SupplierId and DrugId exist prior to recording stock inward batches, and requires PurchasePrice > 0 and QuantityAdded > 0."),
-        ("Atomic Stock Availability Verification: ", "Before staging an order, the system checks Quantity >= RequestedQuantity. If insufficient, the order fails with an explicit out-of-stock validation error."),
-        ("Atomic Decrement Concurrency Guard: ", "Automatically updates Drugs.IsAvailable = false when stock drops to 0, preventing race-condition over-selling."),
-        ("1:1 Order Payment Enforcement: ", "The system verifies that OrderId has not already been billed (Payments.OrderId unique constraint), preventing double payments."),
-        ("Order State Machine Rules: ", "Enforces strict state transitions: Cart -> Pending -> Verified -> PickedUp. Only orders in Verified status can be marked as PickedUp."),
-        ("Doctor Order Isolation: ", "Doctors can query only their own orders (DoctorID == Claims.UserId), whereas Admins have global visibility across all hospital orders."),
-        ("Report Date Range Validation: ", "Validates that ToDate >= FromDate and ensures valid ReportType enum values (Daily, Weekly, Monthly, Yearly).")
+    # Table 3: Services (Business Logic)
+    p_t3 = doc.add_paragraph()
+    p_t3.add_run("Services (Business Logic)\n").font.bold = True
+    p_t3.runs[0].font.size = Pt(11)
+
+    tbl_s = doc.add_table(rows=8, cols=3)
+    tbl_s.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_s)
+    tbl_s.cell(0, 0).width = Inches(0.6)
+    tbl_s.cell(0, 1).width = Inches(2.2)
+    tbl_s.cell(0, 2).width = Inches(3.7)
+    set_cell_background(tbl_s.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_s.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_s.cell(0, 2), COLOR_HEADER_BG)
+    tbl_s.cell(0, 0).paragraphs[0].add_run("S.No").font.bold = True
+    tbl_s.cell(0, 1).paragraphs[0].add_run("Class Name").font.bold = True
+    tbl_s.cell(0, 2).paragraphs[0].add_run("Description").font.bold = True
+
+    s_data = [
+        ("1", "AuthService.cs", "Implements user registration, password verification, and login logic."),
+        ("2", "TokenService.cs", "Generates signed JWT tokens with user claims and expiration."),
+        ("3", "DrugService.cs", "Handles medicine availability checks, stock updates, and low-stock alerts."),
+        ("4", "SupplierService.cs", "Manages supplier records, contact updates, and vendor associations."),
+        ("5", "OrderService.cs", "Coordinates order creation, stock reservation, verification, and handover."),
+        ("6", "PaymentService.cs", "Simulates payment processing and enforces 1:1 transaction rules."),
+        ("7", "SaleReportService.cs", "Computes revenue, purchase costs, profit, and builds CSV report files.")
     ]
-    for b_prefix, b_text in validations:
-        add_bullet(b_text, b_prefix)
+    for idx, (c1, c2, c3) in enumerate(s_data, start=1):
+        tbl_s.cell(idx, 0).width = Inches(0.6)
+        tbl_s.cell(idx, 1).width = Inches(2.2)
+        tbl_s.cell(idx, 2).width = Inches(3.7)
+        set_cell_margins(tbl_s.cell(idx, 0))
+        set_cell_margins(tbl_s.cell(idx, 1))
+        set_cell_margins(tbl_s.cell(idx, 2))
+        tbl_s.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_s.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_s.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
+
+    doc.add_paragraph().paragraph_format.space_before = Pt(8)
+
+    # Table 4: Repositories (Data Access Layer)
+    p_t4 = doc.add_paragraph()
+    p_t4.add_run("Repositories (Data Access Layer)\n").font.bold = True
+    p_t4.runs[0].font.size = Pt(11)
+
+    tbl_r = doc.add_table(rows=8, cols=3)
+    tbl_r.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_r)
+    tbl_r.cell(0, 0).width = Inches(0.6)
+    tbl_r.cell(0, 1).width = Inches(2.2)
+    tbl_r.cell(0, 2).width = Inches(3.7)
+    set_cell_background(tbl_r.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_r.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_r.cell(0, 2), COLOR_HEADER_BG)
+    tbl_r.cell(0, 0).paragraphs[0].add_run("S.No").font.bold = True
+    tbl_r.cell(0, 1).paragraphs[0].add_run("Class Name").font.bold = True
+    tbl_r.cell(0, 2).paragraphs[0].add_run("Description").font.bold = True
+
+    r_data = [
+        ("1", "UserRepository.cs", "Manages database operations for user accounts in User DB."),
+        ("2", "DrugRepository.cs", "Handles CRUD database queries for medicines in Inventory DB."),
+        ("3", "SupplierRepository.cs", "Manages database queries for supplier records in Inventory DB."),
+        ("4", "InventoryRepository.cs", "Manages stock inward entries and batch history in Inventory DB."),
+        ("5", "OrderRepository.cs", "Handles order and order item queries with EF Core in Order DB."),
+        ("6", "PaymentRepository.cs", "Saves and queries payment records with unique order IDs in Payment DB."),
+        ("7", "SaleReportRepository.cs", "Stores and queries sales summary records in SaleReport DB.")
+    ]
+    for idx, (c1, c2, c3) in enumerate(r_data, start=1):
+        tbl_r.cell(idx, 0).width = Inches(0.6)
+        tbl_r.cell(idx, 1).width = Inches(2.2)
+        tbl_r.cell(idx, 2).width = Inches(3.7)
+        set_cell_margins(tbl_r.cell(idx, 0))
+        set_cell_margins(tbl_r.cell(idx, 1))
+        set_cell_margins(tbl_r.cell(idx, 2))
+        tbl_r.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_r.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_r.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 15.0: API CATALOGUE
-    # =========================================================================
-    add_h1("15.0 API Catalogue")
-    api_items = [
-        ("Authentication", "/api/auth/register", "POST", "Public"),
-        ("Authentication", "/api/auth/login", "POST", "Public"),
-        ("Authentication", "/api/auth/me", "GET", "Admin / Doctor"),
-        ("Authentication", "/api/auth/users", "GET", "Admin"),
-        ("Drugs", "/api/drugs", "GET", "Admin / Doctor"),
-        ("Drugs", "/api/drugs/{id}", "GET", "Admin / Doctor"),
-        ("Drugs", "/api/drugs", "POST", "Admin"),
-        ("Drugs", "/api/drugs/{id}", "PUT", "Admin"),
-        ("Drugs", "/api/drugs/{id}", "DELETE", "Admin"),
-        ("Drugs", "/api/drugs/deduct-stock", "POST", "Internal / Authenticated"),
-        ("Suppliers", "/api/suppliers", "GET", "Admin"),
-        ("Suppliers", "/api/suppliers/{id}", "GET", "Admin"),
-        ("Suppliers", "/api/suppliers", "POST", "Admin"),
-        ("Suppliers", "/api/suppliers/{id}", "PUT", "Admin"),
-        ("Suppliers", "/api/suppliers/{id}", "DELETE", "Admin"),
-        ("Inventory", "/api/inventory", "GET", "Admin"),
-        ("Inventory", "/api/inventory", "POST", "Admin"),
-        ("Orders", "/api/orders", "POST", "Doctor"),
-        ("Orders", "/api/orders", "GET", "Admin / Doctor"),
-        ("Orders", "/api/orders/{id}", "GET", "Admin / Doctor"),
-        ("Orders", "/api/orders/{id}/verify", "PUT", "Admin"),
-        ("Orders", "/api/orders/{id}/pickup", "PUT", "Admin"),
-        ("Orders", "/api/orders/pickedup", "GET", "Admin"),
-        ("Payments", "/api/payments", "POST", "Doctor / Admin"),
-        ("Payments", "/api/payments/order/{orderId}", "GET", "Doctor / Admin"),
-        ("Payments", "/api/payments/{id}", "GET", "Admin"),
-        ("Sales Reports", "/api/salereports/generate", "POST", "Admin"),
-        ("Sales Reports", "/api/salereports", "GET", "Admin"),
-        ("Sales Reports", "/api/salereports/{id}/download", "GET", "Admin"),
-        ("Sales Reports", "/api/salereports/{id}/print", "GET", "Admin")
-    ]
-    t_api = doc.add_table(rows=len(api_items) + 1, cols=4)
-    t_api.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_api)
-    for i, h in enumerate(["Module", "Endpoint", "Method", "Access"]):
-        c = t_api.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    # --------------------------------------------------------------------------
+    # 14.0 VALIDATIONS
+    # --------------------------------------------------------------------------
+    add_section_header("14.0 Validations")
+    add_bullet("User Input Validations: Ensure required fields (name, valid email format, contact phone number, password length) are provided.")
+    add_bullet("Role Authorization: Ensure only Admin can add/edit drugs, manage suppliers, verify orders, and view sales reports.")
+    add_bullet("Doctor Isolation: Ensure Doctors can only view and manage their own orders.")
+    add_bullet("Stock Availability: Verify that requested medicine quantities do not exceed available stock before creating an order.")
+    add_bullet("Low Stock Trigger: Automatically identify medicines whose stock is at or below MinimumStockQuantity.")
+    add_bullet("Expiry Validation: Prevent selling medicines that have passed their expiration date.")
+    add_bullet("Order Status Flow: Orders progress through Cart -> Pending -> Verified -> PickedUp (or Cancelled).")
+    add_bullet("1:1 Payment Rule: Exactly one payment is allowed per order. Duplicate payments for the same order are rejected.")
+    add_bullet("Token Security: Every protected API validates JWT signature, issuer, expiration, and role claims.")
 
-    for r_idx, (mod, ep, meth, acc) in enumerate(api_items, start=1):
-        c0, c1, c2, c3 = t_api.cell(r_idx, 0), t_api.cell(r_idx, 1), t_api.cell(r_idx, 2), t_api.cell(r_idx, 3)
-        set_cell_margins(c0, top=40, bottom=40)
-        set_cell_margins(c1, top=40, bottom=40)
-        set_cell_margins(c2, top=40, bottom=40)
-        set_cell_margins(c3, top=40, bottom=40)
-        c0.paragraphs[0].add_run(mod).font.size = Pt(8.5)
-        r1 = c1.paragraphs[0].add_run(ep)
-        r1.font.bold = True
-        r1.font.size = Pt(8.5)
-        c2.paragraphs[0].add_run(meth).font.size = Pt(8.5)
-        c3.paragraphs[0].add_run(acc).font.size = Pt(8.5)
+    # --------------------------------------------------------------------------
+    # 15.0 API CATALOGUE (NO PORT NUMBERS!)
+    # --------------------------------------------------------------------------
+    add_section_header("15.0 API Catalogue")
+    add_body_p("The table below lists all endpoints exposed by the microservices (routed through YARP API Gateway):")
+
+    tbl_api = doc.add_table(rows=22, cols=4)
+    tbl_api.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_api)
+    tbl_api.cell(0, 0).width = Inches(1.3)
+    tbl_api.cell(0, 1).width = Inches(2.7)
+    tbl_api.cell(0, 2).width = Inches(0.9)
+    tbl_api.cell(0, 3).width = Inches(1.6)
+    set_cell_background(tbl_api.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_api.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_api.cell(0, 2), COLOR_HEADER_BG)
+    set_cell_background(tbl_api.cell(0, 3), COLOR_HEADER_BG)
+    tbl_api.cell(0, 0).paragraphs[0].add_run("Module").font.bold = True
+    tbl_api.cell(0, 1).paragraphs[0].add_run("Endpoint").font.bold = True
+    tbl_api.cell(0, 2).paragraphs[0].add_run("Method").font.bold = True
+    tbl_api.cell(0, 3).paragraphs[0].add_run("Access").font.bold = True
+
+    api_data = [
+        ("Auth", "/api/auth/register", "POST", "Public"),
+        ("Auth", "/api/auth/login", "POST", "Public"),
+        ("Auth", "/api/auth/me", "GET", "Admin / Doctor"),
+        ("Inventory", "/api/drugs", "GET", "Admin / Doctor"),
+        ("Inventory", "/api/drugs/{id}", "GET", "Admin / Doctor"),
+        ("Inventory", "/api/drugs", "POST", "Admin"),
+        ("Inventory", "/api/drugs/{id}", "PUT", "Admin"),
+        ("Inventory", "/api/drugs/{id}", "DELETE", "Admin"),
+        ("Inventory", "/api/drugs/low-stock", "GET", "Admin"),
+        ("Inventory", "/api/suppliers", "GET", "Admin"),
+        ("Inventory", "/api/suppliers", "POST", "Admin"),
+        ("Inventory", "/api/inventory/inward", "POST", "Admin"),
+        ("Order", "/api/orders", "POST", "Doctor"),
+        ("Order", "/api/orders", "GET", "Admin"),
+        ("Order", "/api/orders/my-orders", "GET", "Doctor"),
+        ("Order", "/api/orders/{id}", "GET", "Admin / Doctor"),
+        ("Order", "/api/orders/{id}/verify", "PUT", "Admin"),
+        ("Order", "/api/orders/{id}/pickup", "PUT", "Admin"),
+        ("Order", "/api/orders/{id}/cancel", "PUT", "Doctor / Admin"),
+        ("Payment", "/api/payments/simulate", "POST", "Doctor / Internal"),
+        ("SaleReport", "/api/salereports/generate", "POST", "Admin")
+    ]
+    for idx, (m, ep, meth, acc) in enumerate(api_data, start=1):
+        tbl_api.cell(idx, 0).width = Inches(1.3)
+        tbl_api.cell(idx, 1).width = Inches(2.7)
+        tbl_api.cell(idx, 2).width = Inches(0.9)
+        tbl_api.cell(idx, 3).width = Inches(1.6)
+        set_cell_margins(tbl_api.cell(idx, 0), top=50, bottom=50)
+        set_cell_margins(tbl_api.cell(idx, 1), top=50, bottom=50)
+        set_cell_margins(tbl_api.cell(idx, 2), top=50, bottom=50)
+        set_cell_margins(tbl_api.cell(idx, 3), top=50, bottom=50)
+        tbl_api.cell(idx, 0).paragraphs[0].add_run(m).font.size = Pt(9)
+        tbl_api.cell(idx, 1).paragraphs[0].add_run(ep).font.size = Pt(8.5)
+        tbl_api.cell(idx, 2).paragraphs[0].add_run(meth).font.size = Pt(9)
+        tbl_api.cell(idx, 3).paragraphs[0].add_run(acc).font.size = Pt(9)
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 16.0 & 17.0: HTTP STATUS CODES & INTEGRATIONS
-    # =========================================================================
-    add_h1("16.0 HTTP Status Codes")
-    http_items = [
-        ("200", "OK", "The request processed successfully and returned requested entity data."),
-        ("201", "Created", "A new resource (User, Drug, Order, Payment, or SaleReport) was created successfully."),
-        ("204", "No Content", "The request was completed successfully and no response payload is required."),
-        ("400", "Bad Request", "Validation failed (e.g. invalid email format, insufficient stock, negative price, or malformed JSON)."),
-        ("401", "Unauthorized", "Missing, expired, or invalid JWT Bearer token, or invalid login credentials."),
-        ("403", "Forbidden", "Authenticated user does not possess the required role (e.g., Doctor attempting Admin operations)."),
-        ("404", "Not Found", "Requested Drug, Supplier, Order, Payment, or Report was not found in the database."),
-        ("409", "Conflict", "State conflict occurred (e.g., duplicate email address, duplicate 1:1 payment for an order)."),
-        ("500", "Internal Server Error", "An unhandled exception or database connection error occurred during execution.")
-    ]
-    t_http = doc.add_table(rows=len(http_items) + 1, cols=3)
-    t_http.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_http)
-    for i, h in enumerate(["Status Code", "Status", "Description"]):
-        c = t_http.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
+    # --------------------------------------------------------------------------
+    # 16.0 HTTP STATUS CODES
+    # --------------------------------------------------------------------------
+    add_section_header("16.0 HTTP Status Codes")
 
-    for r_idx, (sc, st, desc) in enumerate(http_items, start=1):
-        c0, c1, c2 = t_http.cell(r_idx, 0), t_http.cell(r_idx, 1), t_http.cell(r_idx, 2)
-        set_cell_margins(c0); set_cell_margins(c1); set_cell_margins(c2)
-        r0 = c0.paragraphs[0].add_run(sc)
-        r0.font.bold = True
-        r0.font.size = Pt(9)
-        c1.paragraphs[0].add_run(st).font.size = Pt(9)
-        c2.paragraphs[0].add_run(desc).font.size = Pt(9)
+    tbl_stat = doc.add_table(rows=10, cols=3)
+    tbl_stat.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_stat)
+    tbl_stat.cell(0, 0).width = Inches(1.1)
+    tbl_stat.cell(0, 1).width = Inches(1.5)
+    tbl_stat.cell(0, 2).width = Inches(3.9)
+    set_cell_background(tbl_stat.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_stat.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_stat.cell(0, 2), COLOR_HEADER_BG)
+    tbl_stat.cell(0, 0).paragraphs[0].add_run("Status Code").font.bold = True
+    tbl_stat.cell(0, 1).paragraphs[0].add_run("Status").font.bold = True
+    tbl_stat.cell(0, 2).paragraphs[0].add_run("Description").font.bold = True
 
-    add_h1("17.0 Integrations")
-    integrations = [
-        ("REST APIs (Typed HttpClient): ", "Enables synchronous inter-service HTTP communication between OrderService and InventoryService for atomic stock validation and deduction."),
-        ("JWT Bearer Token Security: ", "Stateless cryptographic authentication passing user identity (UserId), email, and roles across microservices."),
-        ("Microsoft SQL Server 2022: ", "Hosts 5 isolated databases (Pharmacy_UserDB, Pharmacy_InventoryDB, Pharmacy_OrderDB, Pharmacy_PaymentDB, Pharmacy_SaleReportDB)."),
-        ("Entity Framework Core 8: ", "Manages object-relational mapping, code-first migrations, and LINQ execution."),
-        ("Swagger / OpenAPI 3.0: ", "Interactive API documentation and testing interface on every microservice."),
-        ("CSV & Printable Output: ", "Financial report generation providing RFC-4180 CSV export and ASCII receipts.")
+    stat_data = [
+        ("200", "OK", "The request succeeded and returned the requested data."),
+        ("201", "Created", "A new user, drug, order, payment, or report was created successfully."),
+        ("204", "No Content", "The request succeeded and no response body is needed (e.g. deletion)."),
+        ("400", "Bad Request", "The request is invalid, missing data, or failed validation checks."),
+        ("401", "Unauthorized", "The JWT token is missing, expired, or invalid."),
+        ("403", "Forbidden", "The user does not have permission for this action (e.g. Doctor calling Admin API)."),
+        ("404", "Not Found", "The requested drug, order, supplier, or user record was not found."),
+        ("409", "Conflict", "A conflict occurred, such as duplicate email or duplicate payment for an order."),
+        ("500", "Internal Server Error", "An unexpected error occurred while processing the request.")
     ]
-    for b_prefix, b_text in integrations:
-        add_bullet(b_text, b_prefix)
+    for idx, (c1, c2, c3) in enumerate(stat_data, start=1):
+        tbl_stat.cell(idx, 0).width = Inches(1.1)
+        tbl_stat.cell(idx, 1).width = Inches(1.5)
+        tbl_stat.cell(idx, 2).width = Inches(3.9)
+        set_cell_margins(tbl_stat.cell(idx, 0))
+        set_cell_margins(tbl_stat.cell(idx, 1))
+        set_cell_margins(tbl_stat.cell(idx, 2))
+        tbl_stat.cell(idx, 0).paragraphs[0].add_run(c1).font.size = Pt(9.5)
+        tbl_stat.cell(idx, 1).paragraphs[0].add_run(c2).font.size = Pt(9.5)
+        tbl_stat.cell(idx, 2).paragraphs[0].add_run(c3).font.size = Pt(9.5)
+
+    doc.add_paragraph().paragraph_format.space_before = Pt(8)
+
+    # --------------------------------------------------------------------------
+    # 17.0 INTEGRATIONS
+    # --------------------------------------------------------------------------
+    add_section_header("17.0 Integrations")
+    add_bullet("YARP API Gateway: Provides a central entry point and routes client requests to the appropriate microservice.")
+    add_bullet("REST APIs: Enable synchronous communication between Order, Inventory, and Payment services using typed HTTP clients.")
+    add_bullet("JWT Bearer Authentication: Secures APIs with signed tokens and supports role-based access for Admin and Doctor.")
+    add_bullet("SQL Server 2022: Maintains five separate databases ensuring data isolation per service.")
+    add_bullet("Entity Framework Core 8: Manages database access, Code-First mappings, and schema updates.")
+    add_bullet("Swagger UI & OpenAPI: Provide interactive API documentation and testing for all microservices.")
+    add_bullet("NUnit & Moq: Automated unit test suite verifying service layer logic using mocked dependencies.")
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 18.0 & 19.0: SAMPLE REQUESTS & RESPONSES
-    # =========================================================================
-    add_h1("18.0 Sample API Requests")
-    add_h2("Doctor Order Creation Request (POST /api/orders)")
-    req_json = (
+    # --------------------------------------------------------------------------
+    # 18.0 SAMPLE API REQUESTS
+    # --------------------------------------------------------------------------
+    add_section_header("18.0 Sample API Requests")
+    add_body_p("Sample POST request to create an order (/api/orders):")
+
+    order_req_json = (
         "{\n"
+        '  "doctorId": 2,\n'
         '  "items": [\n'
-        '    {\n'
+        "    {\n"
         '      "drugId": 1,\n'
-        '      "quantity": 2\n'
-        '    },\n'
-        '    {\n'
-        '      "drugId": 2,\n'
-        '      "quantity": 1\n'
-        '    }\n'
-        '  ]\n'
+        '      "drugName": "Paracetamol 500mg",\n'
+        '      "quantity": 2,\n'
+        '      "unitPrice": 9.99\n'
+        "    },\n"
+        "    {\n"
+        '      "drugId": 3,\n'
+        '      "drugName": "Ibuprofen 400mg",\n'
+        '      "quantity": 1,\n'
+        '      "unitPrice": 12.00\n'
+        "    }\n"
+        "  ]\n"
         "}"
     )
-    add_callout_box(doc, req_json, "JSON Request Payload:")
+    add_callout_box(doc, order_req_json, "Order Creation Request Payload")
 
-    add_h2("Order Payment Checkout Request (POST /api/payments)")
-    pay_req_json = (
-        "{\n"
-        '  "orderId": 1,\n'
-        '  "amount": 25.50,\n'
-        '  "paymentMethod": "CreditCard"\n'
-        "}"
-    )
-    add_callout_box(doc, pay_req_json, "JSON Request Payload:")
+    # --------------------------------------------------------------------------
+    # 19.0 SAMPLE API RESPONSES
+    # --------------------------------------------------------------------------
+    add_section_header("19.0 Sample API Responses")
+    add_body_p("Successful response returned after order creation:")
 
-    add_h1("19.0 Sample API Responses")
-    add_h2("Successful Order Creation Response (Status: 201 Created)")
-    res_json = (
+    order_res_json = (
         "{\n"
-        '  "success": true,\n'
+        '  "statusCode": 201,\n'
         '  "message": "Order created successfully",\n'
         '  "data": {\n'
-        '    "orderId": 1,\n'
+        '    "orderId": 101,\n'
         '    "doctorId": 2,\n'
-        '    "doctorName": "Dr. Robert Smith",\n'
-        '    "orderDate": "2026-11-18T10:15:30Z",\n'
-        '    "totalAmount": 25.50,\n'
+        '    "orderDate": "2026-11-19T10:30:00Z",\n'
+        '    "totalAmount": 31.98,\n'
         '    "status": "Pending",\n'
         '    "orderItems": [\n'
-        '      {\n'
-        '        "orderItemId": 1,\n'
+        "      {\n"
+        '        "orderItemId": 201,\n'
         '        "drugId": 1,\n'
         '        "drugName": "Paracetamol 500mg",\n'
         '        "quantity": 2,\n'
-        '        "unitPrice": 5.50,\n'
-        '        "totalPrice": 11.00\n'
-        '      },\n'
-        '      {\n'
-        '        "orderItemId": 2,\n'
-        '        "drugId": 2,\n'
-        '        "drugName": "Amoxicillin 250mg",\n'
+        '        "unitPrice": 9.99\n'
+        "      },\n"
+        "      {\n"
+        '        "orderItemId": 202,\n'
+        '        "drugId": 3,\n'
+        '        "drugName": "Ibuprofen 400mg",\n'
         '        "quantity": 1,\n'
-        '        "unitPrice": 14.50,\n'
-        '        "totalPrice": 14.50\n'
-        '      }\n'
-        '    ]\n'
-        '  },\n'
-        '  "errors": []\n'
+        '        "unitPrice": 12.00\n'
+        "      }\n"
+        "    ]\n"
+        "  }\n"
         "}"
     )
-    add_callout_box(doc, res_json, "JSON Response Payload:")
+    add_callout_box(doc, order_res_json, "Status Code: 201 Created")
 
     doc.add_page_break()
 
-    # =========================================================================
-    # SECTION 20.0: UNIT TESTING
-    # =========================================================================
-    add_h1("20.0 Unit Testing")
-    add_body("The system is verified using an automated NUnit test matrix covering core service layer scenarios:")
+    # --------------------------------------------------------------------------
+    # 20.0 NUNIT UNIT TESTING
+    # --------------------------------------------------------------------------
+    add_section_header("20.0 NUnit Unit Testing")
+    add_body_p("The unit testing suite validates key business logic and error scenarios using NUnit and Moq:")
 
-    test_items = [
-        ("TC-01", "Auth", "Register new Doctor user with valid email and password.", "User record is saved in UserDB and returns 201 Created."),
-        ("TC-02", "Auth", "Register using an email that already exists in UserDB.", "Returns 409 Conflict with duplicate email validation error."),
-        ("TC-03", "Auth", "Login with valid credentials for Doctor user.", "Returns 200 OK with valid signed JWT Bearer token and Role claim."),
-        ("TC-04", "Auth", "Login with invalid password.", "Returns 401 Unauthorized with credential error message."),
-        ("TC-05", "Inventory", "Admin creates new drug with valid price and expiry date.", "Drug is created in InventoryDB with IsAvailable = true."),
-        ("TC-06", "Inventory", "Admin attempts to create drug with negative price.", "Validation fails with 400 Bad Request."),
-        ("TC-07", "Inventory", "Query available drugs when some medications have Quantity = 0.", "Returns only medications with IsAvailable = true and Quantity > 0."),
-        ("TC-08", "Inventory", "Atomic stock decrement when sufficient stock is available.", "Quantity is reduced by requested amount; returns 200 OK."),
-        ("TC-09", "Inventory", "Atomic stock decrement when requested quantity exceeds available stock.", "Operation is rejected; stock remains unchanged."),
-        ("TC-10", "Order", "Doctor creates order with available medications.", "Order is staged in Pending status with calculated TotalAmount."),
-        ("TC-11", "Order", "Doctor attempts to place order for expired or out-of-stock medication.", "Order creation is rejected with stock validation error."),
-        ("TC-12", "Order", "Doctor queries own orders.", "Returns only orders associated with the authenticated DoctorID."),
-        ("TC-13", "Order", "Admin verifies valid pending order.", "Order status transitions from Pending to Verified."),
-        ("TC-14", "Order", "Admin marks verified order as PickedUp.", "Order status transitions to PickedUp; visible in PickedUp query."),
-        ("TC-15", "Payment", "Process payment for verified order with valid amount.", "Payment is saved in PaymentDB with Status = Completed."),
-        ("TC-16", "Payment", "Attempt duplicate payment for an order with existing payment record.", "1:1 constraint rejects operation with 409 Conflict."),
-        ("TC-17", "SaleReport", "Generate Daily sales report for current date range.", "Aggregates orders, computes revenue, costs, and profit."),
-        ("TC-18", "SaleReport", "Download sales report as CSV.", "Returns file with text/csv MIME type and RFC-4180 headers."),
-        ("TC-19", "SaleReport", "Generate report with invalid date range (FromDate > ToDate).", "Validation fails with 400 Bad Request."),
-        ("TC-20", "Security", "Doctor attempts to access Admin drug creation endpoint.", "Request is blocked with 403 Forbidden.")
+    tbl_test = doc.add_table(rows=21, cols=4)
+    tbl_test.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_borders(tbl_test)
+    tbl_test.cell(0, 0).width = Inches(0.8)
+    tbl_test.cell(0, 1).width = Inches(1.2)
+    tbl_test.cell(0, 2).width = Inches(2.2)
+    tbl_test.cell(0, 3).width = Inches(2.3)
+    set_cell_background(tbl_test.cell(0, 0), COLOR_HEADER_BG)
+    set_cell_background(tbl_test.cell(0, 1), COLOR_HEADER_BG)
+    set_cell_background(tbl_test.cell(0, 2), COLOR_HEADER_BG)
+    set_cell_background(tbl_test.cell(0, 3), COLOR_HEADER_BG)
+    tbl_test.cell(0, 0).paragraphs[0].add_run("Test Case ID").font.bold = True
+    tbl_test.cell(0, 1).paragraphs[0].add_run("Module").font.bold = True
+    tbl_test.cell(0, 2).paragraphs[0].add_run("Test Scenario").font.bold = True
+    tbl_test.cell(0, 3).paragraphs[0].add_run("Expected Result").font.bold = True
+
+    test_cases = [
+        ("TC-01", "Auth", "Register user with valid details.", "User is created with hashed password and role."),
+        ("TC-02", "Auth", "Register with duplicate email.", "Registration fails with a duplicate email error."),
+        ("TC-03", "Auth", "Login with valid credentials.", "Login succeeds and returns a signed JWT token."),
+        ("TC-04", "Auth", "Login with incorrect password.", "Login fails with 401 Unauthorized."),
+        ("TC-05", "Inventory", "Add medicine with valid details.", "Medicine is saved with price and stock count."),
+        ("TC-06", "Inventory", "Add medicine with negative price.", "Validation fails with 400 Bad Request."),
+        ("TC-07", "Inventory", "Update medicine price and stock.", "Medicine record is updated successfully in SQL."),
+        ("TC-08", "Inventory", "Query medicines below min stock.", "Returns medicines where quantity <= min stock level."),
+        ("TC-09", "Inventory", "Deduct stock when sufficient.", "Medicine stock is reduced by the requested quantity."),
+        ("TC-10", "Inventory", "Deduct stock when insufficient.", "Throws exception and stock remains unchanged."),
+        ("TC-11", "Order", "Create order with valid items.", "Order is created in Pending status with total amount."),
+        ("TC-12", "Order", "Create order with empty cart.", "Validation fails with 400 Bad Request."),
+        ("TC-13", "Order", "Doctor views own order history.", "Returns only orders matching the logged-in doctor ID."),
+        ("TC-14", "Order", "Admin verifies pending order.", "Order status changes from 'Pending' to 'Verified'."),
+        ("TC-15", "Order", "Admin marks order as picked up.", "Order status updates to 'PickedUp' in pickup section."),
+        ("TC-16", "Order", "Doctor cancels order before pickup.", "Order status updates to 'Cancelled' and stock is released."),
+        ("TC-17", "Payment", "Simulate payment for pending order.", "Payment record created with status 'Completed'."),
+        ("TC-18", "Payment", "Simulate duplicate payment.", "Rejected due to 1:1 unique constraint on OrderId."),
+        ("TC-19", "SaleReport", "Generate report for date range.", "Calculates total orders, total revenue, and profit."),
+        ("TC-20", "SaleReport", "Export sales report to CSV.", "Generates CSV file byte array for download.")
     ]
-    t_test = doc.add_table(rows=len(test_items) + 1, cols=4)
-    t_test.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(t_test)
-    for i, h in enumerate(["Test Case ID", "Module", "Test Scenario", "Expected Result"]):
-        c = t_test.cell(0, i)
-        set_cell_background(c, COLOR_HEADER_BG)
-        set_cell_margins(c)
-        r = c.paragraphs[0].add_run(h)
-        r.font.name = "Calibri"
-        r.font.size = Pt(9.5)
-        r.font.bold = True
 
-    for r_idx, (tcid, mod, scen, exp) in enumerate(test_items, start=1):
-        c0, c1, c2, c3 = t_test.cell(r_idx, 0), t_test.cell(r_idx, 1), t_test.cell(r_idx, 2), t_test.cell(r_idx, 3)
-        set_cell_margins(c0, top=50, bottom=50)
-        set_cell_margins(c1, top=50, bottom=50)
-        set_cell_margins(c2, top=50, bottom=50)
-        set_cell_margins(c3, top=50, bottom=50)
-        r0 = c0.paragraphs[0].add_run(tcid)
-        r0.font.bold = True
-        r0.font.size = Pt(9)
-        c1.paragraphs[0].add_run(mod).font.size = Pt(9)
-        c2.paragraphs[0].add_run(scen).font.size = Pt(8.5)
-        c3.paragraphs[0].add_run(exp).font.size = Pt(8.5)
+    for idx, (tc_id, mod, scen, exp) in enumerate(test_cases, start=1):
+        tbl_test.cell(idx, 0).width = Inches(0.8)
+        tbl_test.cell(idx, 1).width = Inches(1.2)
+        tbl_test.cell(idx, 2).width = Inches(2.2)
+        tbl_test.cell(idx, 3).width = Inches(2.3)
+        set_cell_margins(tbl_test.cell(idx, 0), top=40, bottom=40)
+        set_cell_margins(tbl_test.cell(idx, 1), top=40, bottom=40)
+        set_cell_margins(tbl_test.cell(idx, 2), top=40, bottom=40)
+        set_cell_margins(tbl_test.cell(idx, 3), top=40, bottom=40)
+        tbl_test.cell(idx, 0).paragraphs[0].add_run(tc_id).font.size = Pt(8.5)
+        tbl_test.cell(idx, 1).paragraphs[0].add_run(mod).font.size = Pt(8.5)
+        tbl_test.cell(idx, 2).paragraphs[0].add_run(scen).font.size = Pt(8.5)
+        tbl_test.cell(idx, 3).paragraphs[0].add_run(exp).font.size = Pt(8.5)
 
     doc.save(output_path)
     print(f"Generated Word DOCX successfully: {output_path}")

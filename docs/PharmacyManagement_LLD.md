@@ -1,641 +1,440 @@
-# Pharmacy Management System - Low Level Design (LLD) & Technical Architecture
+# Pharmacy Management System — Low Level Design (LLD)
 
-## Architectural Diagrams (High-Resolution JPG Format - Enlarged All-Bold Content)
-
-All 6 architectural diagrams have been generated in **ultra-high-resolution JPG format (3200px width)** using an enterprise color palette and **strictly BOLD typography (Segoe UI Bold, 20pt to 44pt)** so that every service name, table name, column attribute, flow step, and card title is clearly visible without needing to zoom in.
-
-| Diagram | Link to High-Res JPG | Resolution / Format | Content Typography Enhancements |
-| :--- | :--- | :--- | :--- |
-| **1. Solution Architecture Diagram** | [01_Solution_Architecture_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/01_Solution_Architecture_Diagram.jpg) | 3200x2200 JPG | All Service Titles, DB Cylinders, Tech Stack, Execution Steps in **Bold 22-42pt** |
-| **2. Use Case Diagram** | [02_Use_Case_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/02_Use_Case_Diagram.jpg) | 3200x2450 JPG | Stick Figure Actor Badges & 19 Use Case Ovals in **Bold 20-32pt** |
-| **3. Sequence Diagrams** | [03_Sequence_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/03_Sequence_Diagram.jpg) | 3200x2550 JPG | 7 Lifeline Headers & 24 Step Banners with Number Badges in **Bold 20-26pt** |
-| **4. Flow Diagram** | [04_Flow_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/04_Flow_Diagram.jpg) | 3200x2550 JPG | Role Decision Diamonds, Admin & Doctor Branch Nodes in **Bold 20-34pt** |
-| **5. Entity-Relationship (ER) Diagram** | [05_ER_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/05_ER_Diagram.jpg) | 3200x2450 JPG | 8 Relational Entities with PK/FK Badges & Cardinality Labels in **Bold 21-28pt** |
-| **6. Database Schema Diagram** | [06_Database_Schema_Diagram.jpg](file:///c:/Users/chikoti%20lahari/OneDrive/Desktop/pharmacyManagement/docs/diagrams/06_Database_Schema_Diagram.jpg) | 3200x2400 JPG | 5 Database Group Containers, Table Columns & Summary Tables in **Bold 20-28pt** |
+**Project Name:** Pharmacy Management System  
+**Architecture:** Microservices Architecture (5 Services)  
+**Version:** 1.0  
+**Date:** 19/11/2026  
+**Author:** Lahari Chikoti  
 
 ---
 
-## 1. Executive Summary & Solution Overview
-
-The **Pharmacy Management System** is an enterprise-grade, distributed microservices platform built using **.NET 8, C#, Entity Framework Core (EF Core), LINQ, ASP.NET Core Web API, and Microsoft SQL Server**. 
-
-Each microservice encapsulates a cohesive bounded context following **Domain-Driven Design (DDD)** and an internal **MVC (Model-View-Controller / Controller-Service-Repository) pattern**. Cross-cutting concerns such as **JWT Bearer Authentication & Role-Based Access Control (RBAC)**, unified API response formatting, and inter-service HTTP communications are centralized cleanly.
-
-Per specifications, this system contains **no front-end UI**; all endpoints, authentication flows, and business transactions are tested directly through interactive **Swagger / OpenAPI** interfaces.
+## Table of Contents
+- 1.0 Document Purpose
+- 2.0 Intended Audience
+- 3.0 Project Background and Objectives
+  - 3.1 Project Background
+  - 3.2 Project Objective
+- 4.0 Requirements
+  - 4.1 Functional Requirements (FR)
+  - 4.2 Non-Functional Requirements
+  - 4.3 Technology Stack
+- 5.0 Design Patterns
+- 6.0 Flow Diagram
+- 7.0 Use Case Diagram
+- 8.0 Architecture Diagram
+- 9.0 Entity-Relationship Diagram
+- 10.0 Database Diagram
+- 11.0 Class Diagram
+- 12.0 Solution Steps
+- 13.0 Classes Names
+- 14.0 Validations
+- 15.0 API Catalogue
+- 16.0 HTTP Status Codes
+- 17.0 Integrations
+- 18.0 Sample API Requests
+- 19.0 Sample API Responses
+- 20.0 NUnit Unit Testing
 
 ---
 
-## 2. Solution Architecture Diagram
+## 1.0 Document Purpose
+This document describes the Low-Level Design (LLD) of the Pharmacy Management System. The system is built using C#, ASP.NET Core Web API, .NET 10, and a microservices architecture. It defines the service layout, database tables, business rules, validations, APIs, and unit testing approach.
 
-```mermaid
-flowchart TB
-    subgraph Clients["Clients & Testing"]
-        Swagger["Swagger UI / OpenAPI<br/>(Interactive API Testing)"]
-        DoctorUser["Doctor User"]
-        AdminUser["Admin User"]
-    end
+The application has five independent services: Auth Service, Inventory Service, Order Service, Payment Service, and SaleReport Service. Each service owns its private database. Services talk to each other through REST APIs, while the YARP API Gateway routes client requests. Swagger UI is used to test and document all endpoints.
 
-    subgraph Security["Authentication & Access Control"]
-        JWT["JWT Bearer Token<br/>(Claims: UserId, Name, Email, Role)"]
-    end
+---
 
-    subgraph Microservices["Pharmacy Microservices Architecture (.NET 8 Web APIs)"]
-        subgraph AuthMS["1. Auth Service (Port 5001)"]
-            AuthCtrl["AuthController"]
-            AuthSvc["AuthService"]
-            AuthRepo["UserRepository"]
-            AuthContext["AuthDbContext"]
-        end
+## 2.0 Intended Audience
+| Role | Engagement in Pharmacy Management Architecture |
+|---|---|
+| **Product Owners / SMEs** | Confirm that the design covers all pharmacy requirements. |
+| **Business Analysts** | Map doctor and admin business workflows to technical APIs. |
+| **Enterprise Architects** | Review microservice boundaries, security rules, and database isolation. |
+| **Solution Architects** | Check the API contracts, service communications, and data flow. |
+| **Developers & QA Engineers** | Use this document to implement features and write unit tests. |
 
-        subgraph InventoryMS["2. Inventory Service (Port 5002)"]
-            DrugCtrl["DrugsController"]
-            SuppCtrl["SuppliersController"]
-            InvCtrl["InventoryController"]
-            InvSvc["Drug / Supplier / Inventory Services"]
-            InvRepo["Drug / Supplier / Inventory Repositories"]
-            InvContext["InventoryDbContext"]
-        end
+---
 
-        subgraph OrderMS["3. Order Service (Port 5003)"]
-            OrderCtrl["OrdersController"]
-            OrderSvc["OrderService"]
-            InvClient["InventoryHttpClient"]
-            OrderRepo["OrderRepository"]
-            OrderContext["OrderDbContext"]
-        end
+## 3.0 Project Background and Objectives
 
-        subgraph PaymentMS["4. Payment Service (Port 5004)"]
-            PayCtrl["PaymentsController"]
-            PaySvc["PaymentService"]
-            PayRepo["PaymentRepository"]
-            PayContext["PaymentDbContext"]
-        end
+### 3.1 Project Background
+Pharmacies need reliable software to manage medicine stocks, drug suppliers, doctor prescription orders, and sales accounting. Handling these records manually leads to misplaced orders, billing errors, or stock shortages.
 
-        subgraph ReportMS["5. SaleReport Service (Port 5005)"]
-            ReportCtrl["SaleReportsController"]
-            ReportSvc["SaleReportService"]
-            OrderClient["OrderHttpClient"]
-            ReportRepo["SaleReportRepository"]
-            ReportContext["SaleReportDbContext"]
-        end
-    end
+The Pharmacy Management System provides a clean backend solution. Doctors can check available medicines, add items to cart, and place orders. Admins can manage medicines, track supplier deliveries, verify orders, and view profit and sales reports.
 
-    subgraph Databases["Dedicated SQL Server Databases"]
-        UserDB[("User DB<br/>[Pharmacy_UserDB]")]
-        InvDB[("Inventory DB<br/>[Pharmacy_InventoryDB]")]
-        OrderDB[("Order DB<br/>[Pharmacy_OrderDB]")]
-        PayDB[("Payment DB<br/>[Pharmacy_PaymentDB]")]
-        ReportDB[("SaleReport DB<br/>[Pharmacy_SaleReportDB]")]
-    end
+### 3.2 Project Objective
+The objective is to develop a reliable and modular backend using C#, ASP.NET Core Web API, .NET 10, and microservices architecture. Key goals include:
+- Dividing operations into five services with separate SQL databases.
+- Securing endpoints using JWT Bearer authentication and role checks (Admin and Doctor).
+- Enabling doctors to browse medicines, place orders, and simulate payments.
+- Enabling admins to manage inventory, verify orders, and review sales analytics.
+- Documenting all endpoints in Swagger UI and validating logic with NUnit tests.
 
-    %% Client Interactions
-    Swagger -->|HTTP Requests| AuthMS
-    Swagger -->|HTTP Requests| InventoryMS
-    Swagger -->|HTTP Requests| OrderMS
-    Swagger -->|HTTP Requests| PaymentMS
-    Swagger -->|HTTP Requests| ReportMS
+---
 
-    DoctorUser -.->|Bearer Token| Swagger
-    AdminUser -.->|Bearer Token| Swagger
+## 4.0 Requirements
 
-    %% Inter-service calls
-    OrderSvc -->|HTTP REST: Deduct Stock| DrugCtrl
-    ReportSvc -->|HTTP REST: Fetch Orders| OrderCtrl
+### 4.1 Functional Requirements (FR)
+**For Admin:**
+- **Login / Signup:** Sign up and log in using name, email, contact number, and password.
+- **View Drugs:** Browse and view full details of all medicines in the pharmacy.
+- **Manage Drugs:** Add new drugs, edit drug details and prices, and delete drugs.
+- **Manage Suppliers:** View suppliers, add new suppliers, and update supplier information.
+- **View Doctor Orders:** Review orders placed by doctors and check their validity.
+- **Verify Orders:** Mark valid doctor orders as 'Verified'.
+- **Order Handover:** Move verified orders to the 'PickedUp' section once collected.
+- **Sales Reports:** View daily, weekly, monthly, and yearly sales summaries.
+- **Download / Print:** Export sales reports in CSV format for printing and bookkeeping.
+- **Dashboard Analytics:** Monitor low stock medicines, check expired drugs, analyze profit margins, and track top-selling medicines.
 
-    %% Database connections
-    AuthContext -->|EF Core / LINQ| UserDB
-    InvContext -->|EF Core / LINQ| InvDB
-    OrderContext -->|EF Core / LINQ| OrderDB
-    PayContext -->|EF Core / LINQ| PayDB
-    ReportContext -->|EF Core / LINQ| ReportDB
+**For Doctor User:**
+- **Login / Signup:** Sign up and log in with name, email, contact number, and password.
+- **View Drugs:** Browse all available medicines with prices and current stock counts.
+- **Buy Drugs & Cart:** Add selected drugs to cart and create prescription orders.
+- **Payment Simulation:** Complete order payment checkout using simulated payment.
+- **Track Order Status:** Check order progress (Cart, Pending, Verified, PickedUp, or Cancelled).
+- **Order History:** View all previously placed orders and receipts.
+
+### 4.2 Non-Functional Requirements
+- **Microservices Architecture:** 5 separate services with isolated databases.
+- **Security:** Protected APIs require valid JWT Bearer tokens with role claims.
+- **REST APIs:** Synchronous communication between services using typed HTTP clients.
+- **Routing:** YARP API Gateway acts as a single entry point for all client requests.
+- **Validation & Error Handling:** Clear validation messages and standard HTTP status codes.
+- **Testing:** Comprehensive NUnit unit tests and interactive testing via Swagger UI.
+
+### 4.3 Technology Stack
+| Category | Technology | Purpose |
+|---|---|---|
+| **Language** | C# 12 | Primary programming language for all services. |
+| **Framework** | ASP.NET Core Web API | Framework used to build RESTful microservice APIs. |
+| **Runtime** | .NET 10 | Cross-platform runtime to build and run the services. |
+| **ORM** | Entity Framework Core 8 | Maps C# models to SQL tables using Code-First approach. |
+| **Database** | Microsoft SQL Server 2022 | Hosts 5 separate databases for microservice data isolation. |
+| **Security** | JWT Bearer & PBKDF2 | Authenticates users and hashes passwords securely. |
+| **Authorization** | Role-Based Access (RBAC) | Restricts API access based on Admin and Doctor roles. |
+| **API Gateway** | YARP | Routes incoming requests to the appropriate microservices. |
+| **API Documentation** | Swagger / OpenAPI 3.0 | Documents and interactively tests backend APIs. |
+| **Testing** | NUnit & Moq | Automated unit test suite verifying service layer logic. |
+
+---
+
+## 5.0 Design Patterns
+| Name | Description |
+|---|---|
+| **REST API** | HTTP-based REST APIs are used for client calls and service-to-service communication. |
+| **Microservices Architecture** | The system is divided into five independent services: Auth, Inventory, Order, Payment, and SaleReport. |
+| **Layered Architecture** | Each microservice follows a Controller, Service, and Repository structure to separate concerns. |
+| **Repository Pattern** | Repositories handle database access, keeping data logic separate from business rules. |
+| **Dependency Injection** | Services and repositories are injected via built-in DI containers for testability. |
+| **Database per Service** | Each microservice owns its private database. No direct cross-service SQL joins are allowed. |
+| **API Gateway Pattern** | YARP provides a centralized entry point and routes client requests to microservices. |
+| **DTO Pattern** | Request and response DTOs define clean API contracts and prevent over-posting. |
+
+---
+
+## 6.0 Flow Diagram
+![Flow Diagram](diagrams/04_Flow_Diagram.jpg)
+
+### Description
+The flow diagram shows the operational steps for Admin and Doctor users. A user signs up or logs in and receives a JWT token. Based on their role:
+- Admins manage drugs, update supplier inventory, review doctor orders, verify orders, mark orders as picked up, and review sales reports.
+- Doctors browse available medicines, add items to cart, place orders, and proceed to payment simulation.
+If payment succeeds, the order is placed in Pending status for admin verification. If payment fails, the system shows an error and releases any reserved medicine stock.
+
+---
+
+## 7.0 Use Case Diagram
+![Use Case Diagram](diagrams/02_Use_Case_Diagram.jpg)
+
+### Description
+The use case diagram highlights the interactions between the two primary actors (Doctor and Admin) and the Pharmacy Management System.
+The Doctor registers, logs in, browses medicines, places prescription orders, simulates payments, and tracks order status.
+The Admin manages the drug catalog, handles supplier stock inwarding, verifies incoming doctor orders, marks completed orders as picked up, and views financial reports. User registration and login are shared by both roles.
+
+---
+
+## 8.0 Architecture Diagram
+![Architecture Diagram](diagrams/01_Solution_Architecture_Diagram.jpg)
+
+### Description
+The architecture diagram represents the layered structure of the system:
+1. **Presentation Layer:** Client applications and Swagger UI submit HTTP requests.
+2. **Application Layer:** The YARP API Gateway routes incoming requests to five microservices: Auth Service, Inventory Service, Order Service, Payment Service, and SaleReport Service.
+3. **Data Layer:** Each microservice manages its own private SQL database (User DB, Inventory DB, Order DB, Payment DB, SaleReport DB). Services communicate using REST APIs.
+
+---
+
+## 9.0 Entity-Relationship Diagram
+![Entity-Relationship Diagram](diagrams/05_ER_Diagram.jpg)
+
+### Description
+The ER diagram represents the data entities and attributes organized into separate boxes for each database:
+- **User DB:** Contains the User entity with login, role, and contact attributes.
+- **Inventory DB:** Contains Drugs, Suppliers, and Inventory entities with supply and stock relationships.
+- **Order DB:** Contains Orders and OrderItems entities tracking prescription orders.
+- **Payment DB:** Contains Payments tracking simulated checkout transactions.
+- **SaleReport DB:** Standalone service containing SaleReports for revenue and profit summaries.
+Physical foreign keys exist only within the same database. Relationships across databases are logical references verified through REST APIs.
+
+---
+
+## 10.0 Database Diagram
+![Database Diagram](diagrams/06_Database_Schema_Diagram.jpg)
+
+### Description
+The database diagram illustrates the physical tables, column data types, and primary/foreign keys across all five databases.
+Key tables include Users (credentials and roles), Drugs (pricing, quantities, and minimum stock alerts), Suppliers (vendor contacts), Inventory (purchase price and supply dates), Orders and OrderItems (prescription line items), Payments (1:1 unique payment records), and SaleReports (financial totals).
+A unique index on Payment.OrderId prevents duplicate payments for the same order.
+
+---
+
+## 11.0 Class Diagram
+![Class Diagram](diagrams/03_Class_Diagram.jpg)
+
+### Description
+The class diagram illustrates the object-oriented domain models and their responsibilities:
+- **User:** Handles authentication, signup, and role identification.
+- **Drug:** Represents medicine catalog data, selling price, stock levels, and expiry date.
+- **Supplier:** Manages supplier profiles and vendor associations.
+- **Order & OrderItem:** Tracks prescription lines, quantities, unit prices, and status updates.
+- **Payment:** Simulates checkout transactions with 1:1 order enforcement.
+- **SaleReport:** Aggregates revenue, purchase costs, and profit calculations.
+Dashed lines indicate relationships such as 'places', 'manages', 'supplies', 'contains', and 'paid by'.
+
+---
+
+## 12.0 Solution Steps
+
+### 12.1 User Registration and Login
+- The user submits registration information (name, email, phone number, password, and role).
+- Auth Service hashes the password securely using PBKDF2 and saves the user record in User DB.
+- The user logs in with valid email and password credentials.
+- Auth Service verifies the password hash and returns a signed JWT token containing user ID, email, and role.
+
+### 12.2 Admin Manages Drugs and Suppliers
+- The Admin logs in and sends the JWT token in the Authorization header.
+- The Admin creates, updates, or deletes medicines in the Inventory Service, setting selling price and minimum stock quantity.
+- The Admin adds suppliers and enters incoming medicine stock along with purchase price in the Inventory table.
+- Medicine catalog and stock data are saved in Inventory DB.
+
+### 12.3 Doctor Searches Drugs and Adds to Cart
+- The Doctor logs in and queries available medicines through the search endpoints.
+- Inventory Service returns active medicines that have sufficient stock.
+- The Doctor selects medicine items, specifies quantities, and adds them to the order cart.
+
+### 12.4 Doctor Places Order and Simulates Payment
+- The Doctor submits the order payload containing selected medicine items and quantities.
+- Order Service calls Inventory Service to verify availability and deduct medicine quantities.
+- Order Service creates the order record in Order DB with status 'Pending' and triggers payment.
+- Payment Service records the simulated transaction, assigns a unique transaction reference, and sets status to 'Completed'.
+
+### 12.5 Admin Verifies Order and Marks PickedUp
+- The Admin reviews pending orders submitted by doctors.
+- The Admin verifies prescription items and updates order status to 'Verified'.
+- When the medicines are collected, the Admin updates the status to 'PickedUp' in the pickup section.
+
+### 12.6 Admin Generates and Downloads Sales Reports
+- The Admin selects a reporting range (Daily, Weekly, Monthly, or Yearly).
+- SaleReport Service aggregates completed orders, calculates revenue, subtracts purchase costs to compute profit, and saves the report.
+- The Admin can view summary statistics or download the report as a CSV file.
+
+---
+
+## 13.0 Classes Names
+
+### Entities (Models)
+| S.No | Class Name | Description |
+|---|---|---|
+| 1 | `User.cs` | Represents user account information, password hash, and assigned role (Admin or Doctor). |
+| 2 | `Drug.cs` | Represents medicine details, description, selling price, expiry date, quantity, and minimum stock limit. |
+| 3 | `Supplier.cs` | Represents supplier contact information, email, phone number, and address. |
+| 4 | `Inventory.cs` | Represents incoming stock shipments, purchase prices, supply dates, and supplier links. |
+| 5 | `Order.cs` | Represents prescription orders placed by doctors, order date, total amount, and status. |
+| 6 | `OrderItem.cs` | Represents individual medicine line items belonging to an order with unit price. |
+| 7 | `Payment.cs` | Represents simulated payment records with 1:1 order linking and transaction references. |
+| 8 | `SaleReport.cs` | Represents financial sales reports, total order counts, revenue, and profit calculations. |
+
+### Controllers (API Layer)
+| S.No | Class Name | Description |
+|---|---|---|
+| 1 | `AuthController.cs` | Handles user registration, login, and profile retrieval APIs. |
+| 2 | `DrugsController.cs` | Handles drug catalog search, drug creation, updates, and low-stock alerts. |
+| 3 | `SuppliersController.cs` | Handles supplier registration, retrieval, and profile updates. |
+| 4 | `InventoryController.cs` | Handles stock inward shipments, batch updates, and stock deduction. |
+| 5 | `OrdersController.cs` | Handles order creation, status tracking, admin verification, and pickup handover. |
+| 6 | `PaymentsController.cs` | Handles checkout payment simulation and transaction verification. |
+| 7 | `SaleReportsController.cs` | Handles sales report generation, profit analytics, and CSV download APIs. |
+
+### Services (Business Logic)
+| S.No | Class Name | Description |
+|---|---|---|
+| 1 | `AuthService.cs` | Implements user registration, password verification, and login logic. |
+| 2 | `TokenService.cs` | Generates signed JWT tokens with user claims and expiration. |
+| 3 | `DrugService.cs` | Handles medicine availability checks, stock updates, and low-stock alerts. |
+| 4 | `SupplierService.cs` | Manages supplier records, contact updates, and vendor associations. |
+| 5 | `OrderService.cs` | Coordinates order creation, stock reservation, verification, and handover. |
+| 6 | `PaymentService.cs` | Simulates payment processing and enforces 1:1 transaction rules. |
+| 7 | `SaleReportService.cs` | Computes revenue, purchase costs, profit, and builds CSV report files. |
+
+### Repositories (Data Access Layer)
+| S.No | Class Name | Description |
+|---|---|---|
+| 1 | `UserRepository.cs` | Manages database operations for user accounts in User DB. |
+| 2 | `DrugRepository.cs` | Handles CRUD database queries for medicines in Inventory DB. |
+| 3 | `SupplierRepository.cs` | Manages database queries for supplier records in Inventory DB. |
+| 4 | `InventoryRepository.cs` | Manages stock inward entries and batch history in Inventory DB. |
+| 5 | `OrderRepository.cs` | Handles order and order item queries with EF Core in Order DB. |
+| 6 | `PaymentRepository.cs` | Saves and queries payment records with unique order IDs in Payment DB. |
+| 7 | `SaleReportRepository.cs` | Stores and queries sales summary records in SaleReport DB. |
+
+---
+
+## 14.0 Validations
+- **User Input Validations:** Ensure required fields (name, valid email format, contact phone number, password length) are provided.
+- **Role Authorization:** Ensure only Admin can add/edit drugs, manage suppliers, verify orders, and view sales reports.
+- **Doctor Isolation:** Ensure Doctors can only view and manage their own orders.
+- **Stock Availability:** Verify that requested medicine quantities do not exceed available stock before creating an order.
+- **Low Stock Trigger:** Automatically identify medicines whose stock is at or below MinimumStockQuantity.
+- **Expiry Validation:** Prevent selling medicines that have passed their expiration date.
+- **Order Status Flow:** Orders progress through Cart -> Pending -> Verified -> PickedUp (or Cancelled).
+- **1:1 Payment Rule:** Exactly one payment is allowed per order. Duplicate payments for the same order are rejected.
+- **Token Security:** Every protected API validates JWT signature, issuer, expiration, and role claims.
+
+---
+
+## 15.0 API Catalogue
+| Module | Endpoint | Method | Access |
+|---|---|---|---|
+| Auth | `/api/auth/register` | POST | Public |
+| Auth | `/api/auth/login` | POST | Public |
+| Auth | `/api/auth/me` | GET | Admin / Doctor |
+| Inventory | `/api/drugs` | GET | Admin / Doctor |
+| Inventory | `/api/drugs/{id}` | GET | Admin / Doctor |
+| Inventory | `/api/drugs` | POST | Admin |
+| Inventory | `/api/drugs/{id}` | PUT | Admin |
+| Inventory | `/api/drugs/{id}` | DELETE | Admin |
+| Inventory | `/api/drugs/low-stock` | GET | Admin |
+| Inventory | `/api/suppliers` | GET | Admin |
+| Inventory | `/api/suppliers` | POST | Admin |
+| Inventory | `/api/inventory/inward` | POST | Admin |
+| Order | `/api/orders` | POST | Doctor |
+| Order | `/api/orders` | GET | Admin |
+| Order | `/api/orders/my-orders` | GET | Doctor |
+| Order | `/api/orders/{id}` | GET | Admin / Doctor |
+| Order | `/api/orders/{id}/verify` | PUT | Admin |
+| Order | `/api/orders/{id}/pickup` | PUT | Admin |
+| Order | `/api/orders/{id}/cancel` | PUT | Doctor / Admin |
+| Payment | `/api/payments/simulate` | POST | Doctor / Internal |
+| SaleReport | `/api/salereports/generate` | POST | Admin |
+
+---
+
+## 16.0 HTTP Status Codes
+| Status Code | Status | Description |
+|---|---|---|
+| **200** | OK | The request succeeded and returned the requested data. |
+| **201** | Created | A new user, drug, order, payment, or report was created successfully. |
+| **204** | No Content | The request succeeded and no response body is needed (e.g. deletion). |
+| **400** | Bad Request | The request is invalid, missing data, or failed validation checks. |
+| **401** | Unauthorized | The JWT token is missing, expired, or invalid. |
+| **403** | Forbidden | The user does not have permission for this action (e.g. Doctor calling Admin API). |
+| **404** | Not Found | The requested drug, order, supplier, or user record was not found. |
+| **409** | Conflict | A conflict occurred, such as duplicate email or duplicate payment for an order. |
+| **500** | Internal Server Error | An unexpected error occurred while processing the request. |
+
+---
+
+## 17.0 Integrations
+- **YARP API Gateway:** Provides a central entry point and routes client requests to the appropriate microservice.
+- **REST APIs:** Enable synchronous communication between Order, Inventory, and Payment services using typed HTTP clients.
+- **JWT Bearer Authentication:** Secures APIs with signed tokens and supports role-based access for Admin and Doctor.
+- **SQL Server 2022:** Maintains five separate databases ensuring data isolation per service.
+- **Entity Framework Core 8:** Manages database access, Code-First mappings, and schema updates.
+- **Swagger UI & OpenAPI:** Provide interactive API documentation and testing for all microservices.
+- **NUnit & Moq:** Automated unit test suite verifying service layer logic using mocked dependencies.
+
+---
+
+## 18.0 Sample API Requests
+**Sample POST request to create an order (`/api/orders`):**
+```json
+{
+  "doctorId": 2,
+  "items": [
+    {
+      "drugId": 1,
+      "drugName": "Paracetamol 500mg",
+      "quantity": 2,
+      "unitPrice": 9.99
+    },
+    {
+      "drugId": 3,
+      "drugName": "Ibuprofen 400mg",
+      "quantity": 1,
+      "unitPrice": 12.00
+    }
+  ]
+}
 ```
 
 ---
 
-## 3. Use Case Diagram
-
-The system supports two core personas: **Admin** and **Doctor User**.
-
-```mermaid
-flowchart LR
-    subgraph Actors["User Personas"]
-        Admin(("Admin"))
-        Doctor(("Doctor User"))
-    end
-
-    subgraph AuthCases["Authentication & Profiles"]
-        UC1["Login / Signup (Name, Contact, Email, Password)"]
-        UC2["Validate Doctor Role"]
-        UC3["View All Users"]
-    end
-
-    subgraph InventoryCases["Drug & Inventory Management"]
-        UC4["View Drugs & Drug Details"]
-        UC5["Add Drug"]
-        UC6["Edit Drug"]
-        UC7["Delete Drug"]
-        UC8["View Suppliers & Supplier Details"]
-        UC9["Add Supplier"]
-        UC10["Edit Supplier"]
-        UC11["Delete Supplier"]
-        UC12["Add Stock to Inventory"]
-    end
-
-    subgraph OrderCases["Order Processing"]
-        UC13["Buy Drugs / Place Order"]
-        UC14["View Doctor's Own Orders"]
-        UC15["View All Doctor Orders"]
-        UC16["Validate Order"]
-        UC17["Verify Order"]
-        UC18["Add Order to PickedUp Section"]
-        UC19["View PickedUp Orders"]
-    end
-
-    subgraph PaymentCases["Payment Processing"]
-        UC20["Process Payment for Order"]
-        UC21["View Payment Transactions"]
-    end
-
-    subgraph ReportCases["Sales Reporting"]
-        UC22["Generate Sales Report (Daily/Weekly/Monthly/Yearly)"]
-        UC23["View Sales Reports"]
-        UC24["Download Sales Report (CSV)"]
-        UC25["Print Sales Report (Formatted Print View)"]
-    end
-
-    %% Doctor Relationships
-    Doctor --> UC1
-    Doctor --> UC4
-    Doctor --> UC13
-    Doctor --> UC14
-    Doctor --> UC20
-
-    %% Admin Relationships
-    Admin --> UC1
-    Admin --> UC3
-    Admin --> UC4
-    Admin --> UC5
-    Admin --> UC6
-    Admin --> UC7
-    Admin --> UC8
-    Admin --> UC9
-    Admin --> UC10
-    Admin --> UC11
-    Admin --> UC12
-    Admin --> UC15
-    Admin --> UC16
-    Admin --> UC17
-    Admin --> UC18
-    Admin --> UC19
-    Admin --> UC21
-    Admin --> UC22
-    Admin --> UC23
-    Admin --> UC24
-    Admin --> UC25
+## 19.0 Sample API Responses
+**Successful response returned after order creation:**
+```json
+{
+  "statusCode": 201,
+  "message": "Order created successfully",
+  "data": {
+    "orderId": 101,
+    "doctorId": 2,
+    "orderDate": "2026-11-19T10:30:00Z",
+    "totalAmount": 31.98,
+    "status": "Pending",
+    "orderItems": [
+      {
+        "orderItemId": 201,
+        "drugId": 1,
+        "drugName": "Paracetamol 500mg",
+        "quantity": 2,
+        "unitPrice": 9.99
+      },
+      {
+        "orderItemId": 202,
+        "drugId": 3,
+        "drugName": "Ibuprofen 400mg",
+        "quantity": 1,
+        "unitPrice": 12.00
+      }
+    ]
+  }
+}
 ```
+**Status Code:** 201 Created
 
 ---
 
-## 4. Sequence Diagrams
-
-### Sequence Diagram 1: Doctor User Journey (Signup, Browse, Order, Pay)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Doctor as Doctor User
-    participant Auth as Auth Service (:5001)
-    participant Inv as Inventory Service (:5002)
-    participant Order as Order Service (:5003)
-    participant Pay as Payment Service (:5004)
-
-    Note over Doctor, Auth: 1. Authentication
-    Doctor->>Auth: POST /api/auth/register or /login
-    Auth-->>Doctor: 200 OK + JWT Bearer Token (Role: Doctor)
-
-    Note over Doctor, Inv: 2. Browse Drugs
-    Doctor->>Inv: GET /api/drugs?availableOnly=true (Bearer Token)
-    Inv-->>Doctor: 200 OK + List of Drugs (Paracetamol, Amoxicillin, etc.)
-
-    Note over Doctor, Order: 3. Place Order / Buy Drugs
-    Doctor->>Order: POST /api/orders (Items: DrugId, Qty, UnitPrice)
-    Order->>Inv: POST /api/drugs/deduct-stock (Internal REST Call)
-    Inv-->>Order: 200 OK (Stock Deducted & Availability Updated)
-    Order-->>Doctor: 201 Created (OrderId: 101, Status: Pending, TotalAmount: $48.50)
-
-    Note over Doctor, Pay: 4. Process Payment
-    Doctor->>Pay: POST /api/payments (OrderId: 101, Amount: $48.50, Method: CreditCard)
-    Pay-->>Doctor: 200 OK (PaymentId: 501, Status: Completed, TxnRef: TXN-XXXXX)
-```
-
----
-
-### Sequence Diagram 2: Admin Workflow (Validate, Verify, and Move to PickedUp)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as Admin User
-    participant Auth as Auth Service (:5001)
-    participant Order as Order Service (:5003)
-
-    Admin->>Auth: POST /api/auth/login (Admin Credentials)
-    Auth-->>Admin: 200 OK + JWT Bearer Token (Role: Admin)
-
-    Note over Admin, Order: 1. View Orders Placed by All Doctors
-    Admin->>Order: GET /api/orders (Bearer Token)
-    Order-->>Admin: 200 OK + List of Orders across all Doctors
-
-    Note over Admin, Order: 2. Check Order Validity
-    Admin->>Order: GET /api/orders/{id}/validate
-    Order-->>Admin: 200 OK (isValid: true, DoctorId verified, TotalAmount > 0)
-
-    Note over Admin, Order: 3. Verify Order
-    Admin->>Order: PUT /api/orders/{id}/verify
-    Order-->>Admin: 200 OK (Status changed from 'Pending' to 'Verified')
-
-    Note over Admin, Order: 4. Handover to Doctor / Add to PickedUp Section
-    Admin->>Order: PUT /api/orders/{id}/pickup
-    Order-->>Admin: 200 OK (Status changed to 'PickedUp')
-
-    Note over Admin, Order: 5. Query PickedUp Orders Section
-    Admin->>Order: GET /api/orders/picked-up
-    Order-->>Admin: 200 OK + List of PickedUp Orders
-```
-
----
-
-### Sequence Diagram 3: Admin Sales Reporting & Export Workflow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as Admin User
-    participant Report as SaleReport Service (:5005)
-    participant Order as Order Service (:5003)
-
-    Admin->>Report: POST /api/salereports/generate (ReportType: Monthly, DateRange)
-    Report->>Order: GET /api/orders (Fetch verified & picked-up orders)
-    Order-->>Report: 200 OK + Orders Dataset
-    Report->>Report: Calculate Total Orders, Total Revenue, Net Profit
-    Report-->>Admin: 201 Created + SaleReportDto
-
-    Admin->>Report: GET /api/salereports (View All Reports)
-    Report-->>Admin: 200 OK + Historical Reports List
-
-    Admin->>Report: GET /api/salereports/{id}/download
-    Report-->>Admin: 200 OK + Content-Type: text/csv (File Download)
-
-    Admin->>Report: GET /api/salereports/{id}/print
-    Report-->>Admin: 200 OK + Formatted Printable Layout
-```
-
----
-
-## 5. Flow Diagrams
-
-### Flow Diagram 1: Order Lifecycle State Machine
-
-```mermaid
-flowchart TD
-    Start([Doctor Initiates Order]) --> CartState["Cart Status<br/>(Optional pre-order items staging)"]
-    CartState --> SubmitOrder["Doctor Submits Order<br/>POST /api/orders"]
-    Start --> SubmitOrder
-    
-    SubmitOrder --> CheckStock{"Stock Available &<br/>Quantity Sufficient?"}
-    CheckStock -- No --> RejectOrder["Order Rejected<br/>(Out of Stock Alert)"]
-    CheckStock -- Yes --> DeductStock["Atomic Stock Deduction<br/>InventoryService"]
-    
-    DeductStock --> PendingState["Status: Pending<br/>(Awaiting Admin Review & Payment)"]
-    
-    PendingState --> PaymentGate{"Payment<br/>Processed?"}
-    PaymentGate -- Yes --> PaymentSuccess["Payment Status: Completed"]
-    PaymentGate -- No --> PendingPayment["Payment Status: Pending / Failed"]
-    
-    PaymentSuccess --> AdminReview["Admin Reviews Doctor Order<br/>GET /api/orders/{id}/validate"]
-    AdminReview --> IsValid{"Is Order Valid?"}
-    IsValid -- Yes --> VerifyOrder["Admin Verifies Order<br/>PUT /api/orders/{id}/verify<br/>Status: Verified"]
-    IsValid -- No --> CancelOrder["Order Flagged / Cancelled"]
-    
-    VerifyOrder --> DoctorPickup["Doctor / Clinic Collects Drugs"]
-    DoctorPickup --> MarkPickedUp["Admin Marks Picked Up<br/>PUT /api/orders/{id}/pickup<br/>Status: PickedUp"]
-    
-    MarkPickedUp --> Aggregation["Available for Sales Report Aggregation"]
-    Aggregation --> End([Workflow Complete])
-```
-
----
-
-### Flow Diagram 2: Inventory Stock Deduction & Restock Flow
-
-```mermaid
-flowchart TD
-    InvStart([Inventory Event]) --> EventType{"Event Type"}
-    
-    %% Deduction
-    EventType -- Order Placement --> ValidateItems["Validate all DrugIds & Requested Quantities"]
-    ValidateItems --> ExpiryCheck{"Are drugs within<br/>valid expiry date?"}
-    ExpiryCheck -- No --> FailDeduction["Fail: Expired Batch"]
-    ExpiryCheck -- Yes --> StockCheck{"Quantity >= Requested?"}
-    StockCheck -- No --> FailStock["Fail: Insufficient Stock"]
-    StockCheck -- Yes --> DeductQuantity["Deduct Quantity: drug.Quantity -= requested"]
-    DeductQuantity --> CheckZero{"Is Quantity == 0?"}
-    CheckZero -- Yes --> MarkUnavailable["Set IsAvailable = false"]
-    CheckZero -- No --> RetainAvailable["Keep IsAvailable = true"]
-    MarkUnavailable --> SuccessDeduct["Return Success to OrderService"]
-    RetainAvailable --> SuccessDeduct
-    
-    %% Restock
-    EventType -- Admin Stock Inward --> AddStock["Admin adds Supplier, Drug, PurchasePrice, Qty"]
-    AddStock --> InsertInvRecord["Insert into Inventory Table"]
-    InsertInvRecord --> UpdateDrugStock["drug.Quantity += QuantityAdded"]
-    UpdateDrugStock --> ReenableAvailable["Set IsAvailable = true"]
-    ReenableAvailable --> EndInv([Inventory Updated])
-```
-
----
-
-## 6. Entity-Relationship (ER) Diagram (Logical & Microservice Boundary)
-
-```mermaid
-erDiagram
-    %% Auth Service DB
-    USERS {
-        int UserId PK
-        string Name
-        string Email UK
-        string PhoneNumber
-        string PasswordHash
-        string Role "Admin | Doctor"
-        bool IsActive
-        datetime CreatedDate
-    }
-
-    %% Inventory Service DB
-    DRUGS {
-        int DrugId PK
-        string Name
-        string Description
-        decimal Price "Selling Price"
-        datetime ExpiryDate
-        int Quantity
-        bool IsAvailable
-    }
-
-    SUPPLIERS {
-        int SupplierId PK
-        string SupplierName
-        string Email
-        string PhoneNumber
-        string Address
-    }
-
-    INVENTORY {
-        int InventoryId PK
-        int SupplierId FK
-        int DrugId FK
-        decimal PurchasePrice
-        int QuantityAdded
-        datetime StockReceivedDate
-    }
-
-    %% Order Service DB
-    ORDERS {
-        int OrderId PK
-        int DoctorID "Logical FK -> Users"
-        datetime OrderDate
-        decimal TotalAmount
-        string Status "Cart | Pending | Verified | PickedUp"
-    }
-
-    ORDER_ITEMS {
-        int OrderItemId PK
-        int OrderId FK
-        int DrugId "Logical FK -> Drugs"
-        string DrugName
-        int Quantity
-        decimal UnitPrice
-    }
-
-    %% Payment Service DB
-    PAYMENTS {
-        int PaymentId PK
-        int OrderId UK "Logical FK -> Orders (1:1)"
-        decimal Amount
-        datetime PaymentDate
-        string PaymentMethod "CreditCard | DebitCard | UPI | NetBanking | Cash"
-        string PaymentStatus "Pending | Completed | Failed"
-        string TransactionReference
-    }
-
-    %% SaleReport Service DB
-    SALE_REPORTS {
-        int SaleReportId PK
-        string ReportType "Daily | Weekly | Monthly | Yearly"
-        datetime FromDate
-        datetime ToDate
-        int TotalOrders
-        decimal TotalRevenue
-        datetime GeneratedDate
-        decimal Profit
-    }
-
-    %% Explicit Relationships per Prompt Requirements:
-    SUPPLIERS ||--o{ INVENTORY : "1:M (Supplier to Inventory)"
-    DRUGS ||--o{ INVENTORY : "1:M (Drug to Inventory)"
-    ORDERS ||--o{ ORDER_ITEMS : "1:M (Order to OrderItem)"
-    USERS ||..o{ ORDERS : "1:M (User to Order - cross-service)"
-    DRUGS ||..o{ ORDER_ITEMS : "1:M (Drug to OrderItem - cross-service)"
-    ORDERS ||..|| PAYMENTS : "1:1 (Order to Payment - cross-service)"
-    SALE_REPORTS }o..o{ ORDERS : "Aggregates (Standalone)"
-```
-
----
-
-## 7. Database Diagram (Physical Schemas)
-
-```mermaid
-classDiagram
-    direction TB
-
-    class Pharmacy_UserDB_Users {
-        +int UserId [PK, Identity]
-        +nvarchar(100) Name
-        +nvarchar(150) Email [Unique Index]
-        +nvarchar(20) PhoneNumber
-        +nvarchar(255) PasswordHash
-        +nvarchar(20) Role [Index: Admin/Doctor]
-        +bit IsActive [Default: 1]
-        +datetime2 CreatedDate [Default: GETUTCDATE()]
-    }
-
-    class Pharmacy_InventoryDB_Drugs {
-        +int DrugId [PK, Identity]
-        +nvarchar(150) Name
-        +nvarchar(500) Description
-        +decimal(18,2) Price [Selling Price]
-        +datetime2 ExpiryDate
-        +int Quantity
-        +bit IsAvailable [Index, Default: 1]
-    }
-
-    class Pharmacy_InventoryDB_Suppliers {
-        +int SupplierId [PK, Identity]
-        +nvarchar(150) SupplierName
-        +nvarchar(150) Email
-        +nvarchar(20) PhoneNumber
-        +nvarchar(300) Address
-    }
-
-    class Pharmacy_InventoryDB_Inventory {
-        +int InventoryId [PK, Identity]
-        +int SupplierId [FK -> Suppliers.SupplierId]
-        +int DrugId [FK -> Drugs.DrugId]
-        +decimal(18,2) PurchasePrice
-        +int QuantityAdded
-        +datetime2 StockReceivedDate [Default: GETUTCDATE()]
-    }
-
-    class Pharmacy_OrderDB_Orders {
-        +int OrderId [PK, Identity]
-        +int DoctorID [Index: Links to UserDB.Users.UserId]
-        +datetime2 OrderDate [Default: GETUTCDATE()]
-        +decimal(18,2) TotalAmount
-        +nvarchar(20) Status [Index: Cart/Pending/Verified/PickedUp]
-    }
-
-    class Pharmacy_OrderDB_OrderItems {
-        +int OrderItemId [PK, Identity]
-        +int OrderId [FK -> Orders.OrderId, Cascade Delete]
-        +int DrugId [Index: Links to InventoryDB.Drugs.DrugId]
-        +nvarchar(150) DrugName
-        +int Quantity
-        +decimal(18,2) UnitPrice
-    }
-
-    class Pharmacy_PaymentDB_Payments {
-        +int PaymentId [PK, Identity]
-        +int OrderId [Unique Index: 1:1 with Orders.OrderId]
-        +decimal(18,2) Amount
-        +datetime2 PaymentDate [Default: GETUTCDATE()]
-        +nvarchar(50) PaymentMethod
-        +nvarchar(20) PaymentStatus [Index: Pending/Completed/Failed]
-        +nvarchar(100) TransactionReference
-    }
-
-    class Pharmacy_SaleReportDB_SaleReports {
-        +int SaleReportId [PK, Identity]
-        +nvarchar(20) ReportType [Index: Daily/Weekly/Monthly/Yearly]
-        +datetime2 FromDate
-        +datetime2 ToDate
-        +int TotalOrders
-        +decimal(18,2) TotalRevenue
-        +datetime2 GeneratedDate [Index, Default: GETUTCDATE()]
-        +decimal(18,2) Profit
-    }
-
-    Pharmacy_InventoryDB_Suppliers "1" --> "*" Pharmacy_InventoryDB_Inventory : FK_Inventory_Suppliers
-    Pharmacy_InventoryDB_Drugs "1" --> "*" Pharmacy_InventoryDB_Inventory : FK_Inventory_Drugs
-    Pharmacy_OrderDB_Orders "1" --> "*" Pharmacy_OrderDB_OrderItems : FK_OrderItems_Orders
-```
-
----
-
-## 8. Microservice Details & Internal MVC Architecture
-
-Each microservice is an ASP.NET Core Web API structured internally with MVC separation:
-- **Controllers/**: Expose RESTful endpoints, validate inputs via `ModelState`, return standard `ApiResponse<T>`.
-- **Models/**: Domain entities mapped to SQL Server tables via EF Core attributes and Fluent API.
-- **DTOs/**: Strongly typed request/response contracts isolating domain models from external API exposure.
-- **Repositories/**: Encapsulate data access logic using LINQ queries and EF Core `DbContext`.
-- **Services/**: Implement business workflows, validations, computations, and inter-service HTTP communications.
-- **Data/**: EF Core `DbContext`, Fluent API mappings, and automatic database seeders.
-
-### Summary of Microservices Configuration
-
-| Microservice | Default Port | Swagger URL | Database Name | Internal MVC Controller |
-| :--- | :--- | :--- | :--- | :--- |
-| **Auth Service** | `5001` | `http://localhost:5001/swagger` | `Pharmacy_UserDB` | `AuthController` |
-| **Inventory Service** | `5002` | `http://localhost:5002/swagger` | `Pharmacy_InventoryDB` | `DrugsController`, `SuppliersController`, `InventoryController` |
-| **Order Service** | `5003` | `http://localhost:5003/swagger` | `Pharmacy_OrderDB` | `OrdersController` |
-| **Payment Service** | `5004` | `http://localhost:5004/swagger` | `Pharmacy_PaymentDB` | `PaymentsController` |
-| **SaleReport Service**| `5005` | `http://localhost:5005/swagger` | `Pharmacy_SaleReportDB`| `SaleReportsController` |
-
----
-
-## 9. Comprehensive API Endpoint Catalog & Swagger Testing Guide
-
-### 9.1 Auth Service (`http://localhost:5001/swagger`)
-
-| Method | Endpoint | Authorization | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Anonymous | Register a new user (`Admin` or `Doctor`) |
-| `POST` | `/api/auth/login` | Anonymous | Authenticate and obtain JWT Bearer Token |
-| `GET` | `/api/auth/profile` | Authenticated | View logged-in user profile from token claims |
-| `GET` | `/api/auth/validate-doctor/{doctorId}` | Anonymous | Verify if given ID belongs to an active Doctor |
-| `GET` | `/api/auth/users` | `Admin` | View all registered users in system |
-| `GET` | `/api/auth/users/{userId}`| Authenticated | View user details by ID |
-
-### 9.2 Inventory Service (`http://localhost:5002/swagger`)
-
-| Method | Endpoint | Authorization | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/drugs` | Anonymous / Any | View all drugs (`?availableOnly=true` supported) |
-| `GET` | `/api/drugs/{id}` | Anonymous / Any | View details of a specific drug |
-| `POST` | `/api/drugs` | `Admin` | Add a new drug |
-| `PUT` | `/api/drugs/{id}` | `Admin` | Edit an existing drug |
-| `DELETE`| `/api/drugs/{id}` | `Admin` | Delete a drug |
-| `POST` | `/api/drugs/check-availability` | Anonymous | Check stock availability for item list |
-| `POST` | `/api/drugs/deduct-stock` | Anonymous | Deduct stock (Inter-service call from OrderService) |
-| `GET` | `/api/suppliers` | `Admin` | View all suppliers |
-| `GET` | `/api/suppliers/{id}` | `Admin` | View supplier details by ID |
-| `POST` | `/api/suppliers` | `Admin` | Add a new supplier |
-| `PUT` | `/api/suppliers/{id}` | `Admin` | Edit an existing supplier |
-| `DELETE`| `/api/suppliers/{id}` | `Admin` | Delete a supplier |
-| `GET` | `/api/inventory` | `Admin` | View inventory records with supplier & drug info |
-| `POST` | `/api/inventory` | `Admin` | Add stock entry with purchase price & quantity |
-
-### 9.3 Order Service (`http://localhost:5003/swagger`)
-
-| Method | Endpoint | Authorization | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/orders` | `Doctor` | Buy drugs / place order (triggers stock deduction) |
-| `GET` | `/api/orders/my-orders` | `Doctor` | View orders placed by current logged-in Doctor |
-| `GET` | `/api/orders` | `Admin` | View orders placed by all doctors |
-| `GET` | `/api/orders/{id}` | Authenticated | View order details with items |
-| `GET` | `/api/orders/{id}/validate` | `Admin` | Validate order details (items, totals, doctor) |
-| `PUT` | `/api/orders/{id}/verify` | `Admin` | Verify an order (Status -> `Verified`) |
-| `PUT` | `/api/orders/{id}/pickup` | `Admin` | Move order to PickedUp section (Status -> `PickedUp`) |
-| `GET` | `/api/orders/picked-up` | `Admin` | View all picked-up orders |
-| `PUT` | `/api/orders/{id}/status` | `Admin` | Update order status manually |
-
-### 9.4 Payment Service (`http://localhost:5004/swagger`)
-
-| Method | Endpoint | Authorization | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/payments` | Authenticated | Process payment for an order |
-| `GET` | `/api/payments/order/{orderId}` | Authenticated | Get payment transaction for an Order ID (1:1) |
-| `GET` | `/api/payments/{id}` | Authenticated | Get payment details by Payment ID |
-| `GET` | `/api/payments` | `Admin` | View all payment transactions across system |
-| `PUT` | `/api/payments/{id}/status` | `Admin` | Update payment status manually |
-
-### 9.5 SaleReport Service (`http://localhost:5005/swagger`)
-
-| Method | Endpoint | Authorization | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/salereports/generate` | `Admin` | Generate Sales Report (Daily, Weekly, Monthly, Yearly) |
-| `GET` | `/api/salereports` | `Admin` | View all generated sales reports |
-| `GET` | `/api/salereports/{id}` | `Admin` | View sales report details by ID |
-| `GET` | `/api/salereports/{id}/download` | `Admin` | Download sales report as a CSV spreadsheet |
-| `GET` | `/api/salereports/{id}/print` | `Admin` | Get formatted printable receipt/view of sales report |
-
----
-
-## 10. Default Seed Credentials for Quick Swagger Testing
-
-| Persona | Email | Password | Role |
-| :--- | :--- | :--- | :--- |
-| **System Administrator** | `admin@pharmacy.com` | `Admin@123` | `Admin` |
-| **Doctor User** | `doctor@pharmacy.com` | `Doctor@123` | `Doctor` |
-
-*(Note: In Swagger, click the **Authorize** lock button in the top right, enter `Bearer {token}` copied from the Login response, and click Authorize to test role-protected endpoints).*
+## 20.0 NUnit Unit Testing
+| Test Case ID | Module | Test Scenario | Expected Result |
+|---|---|---|---|
+| **TC-01** | Auth | Register user with valid details. | User is created with hashed password and role. |
+| **TC-02** | Auth | Register with duplicate email. | Registration fails with a duplicate email error. |
+| **TC-03** | Auth | Login with valid credentials. | Login succeeds and returns a signed JWT token. |
+| **TC-04** | Auth | Login with incorrect password. | Login fails with 401 Unauthorized. |
+| **TC-05** | Inventory | Add medicine with valid details. | Medicine is saved with price and stock count. |
+| **TC-06** | Inventory | Add medicine with negative price. | Validation fails with 400 Bad Request. |
+| **TC-07** | Inventory | Update medicine price and stock. | Medicine record is updated successfully in SQL. |
+| **TC-08** | Inventory | Query medicines below min stock. | Returns medicines where quantity <= min stock level. |
+| **TC-09** | Inventory | Deduct stock when sufficient. | Medicine stock is reduced by requested quantity. |
+| **TC-10** | Inventory | Deduct stock when insufficient. | Throws exception and stock remains unchanged. |
+| **TC-11** | Order | Create order with valid items. | Order is created in Pending status with total. |
+| **TC-12** | Order | Create order with empty cart. | Validation fails with 400 Bad Request. |
+| **TC-13** | Order | Doctor views own order history. | Returns only orders matching logged-in doctor ID. |
+| **TC-14** | Order | Admin verifies pending order. | Order status changes from 'Pending' to 'Verified'. |
+| **TC-15** | Order | Admin marks order as picked up. | Order status updates to 'PickedUp' in pickup section. |
+| **TC-16** | Order | Doctor cancels order before pickup. | Order status updates to 'Cancelled' and stock is released. |
+| **TC-17** | Payment | Simulate payment for pending order. | Payment record created with status 'Completed'. |
+| **TC-18** | Payment | Simulate duplicate payment. | Rejected due to 1:1 unique constraint on OrderId. |
+| **TC-19** | SaleReport | Generate report for date range. | Calculates total orders, total revenue, and profit. |
+| **TC-20** | SaleReport | Export sales report to CSV. | Generates CSV file byte array for download. |
