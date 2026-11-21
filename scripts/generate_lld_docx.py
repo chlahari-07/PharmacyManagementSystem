@@ -7,7 +7,7 @@ from docx.oxml import parse_xml, OxmlElement
 from docx.oxml.ns import nsdecls, qn
 
 WORKSPACE_DOCX = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\PharmacyManagement_LLD.docx"
-ARTIFACT_DOCX = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\fbadf837-bfa5-49ff-a097-c847f39ee39a\PharmacyManagement_LLD.docx"
+ARTIFACT_DOCX = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\1b3064b5-dfd3-4cc3-896f-67b0eb16619c\PharmacyManagement_LLD.docx"
 DIAGRAMS_DIR = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\diagrams"
 
 # Corporate Color Palette (Matching Template: Deep Navy & Clean Slate)

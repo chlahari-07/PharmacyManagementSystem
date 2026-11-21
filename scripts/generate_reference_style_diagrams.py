@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Output Directories
 OUT_DIR_WORKSPACE = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\diagrams"
-OUT_DIR_ARTIFACT = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\fbadf837-bfa5-49ff-a097-c847f39ee39a\diagrams"
+OUT_DIR_ARTIFACT = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\1b3064b5-dfd3-4cc3-896f-67b0eb16619c\diagrams"
 
 os.makedirs(OUT_DIR_WORKSPACE, exist_ok=True)
 os.makedirs(OUT_DIR_ARTIFACT, exist_ok=True)
@@ -231,8 +231,9 @@ def generate_use_case_diagram():
         draw.line([(ax + 25, ay + 10), (240, uy + 27)], fill=CLR_MID_GRAY, width=1)
 
     # Admin Use Cases (Right Side Ovals: x: 820 to 1110, width: 290)
+    # Note: Admin CANNOT register; Admin can ONLY login
     admin_ucs = [
-        ("Register / Login", 130),
+        ("Login", 130),
         ("Add / Edit / Delete Drugs", 215),
         ("View & Manage Suppliers", 300),
         ("View Doctor Orders", 385),
@@ -259,6 +260,12 @@ def generate_use_case_diagram():
         draw.ellipse([545, cy, 805, cy + 55], fill=CLR_BG_TINT, outline=CLR_BORDER_LIGHT, width=2)
         tb = F_NODE_TXT.getbbox(c_txt)
         draw.text((545 + (260 - (tb[2]-tb[0]))//2, cy + 18), c_txt, font=F_NODE_TXT, fill=CLR_DARK_GRAY)
+
+    # <<include>> dashed dependency arrows matching Figure 7.0
+    draw_arrow(draw, (820, 235), (805, 275), CLR_BORDER, 2, "<<include>>", True, True)
+    draw_arrow(draw, (820, 250), (805, 400), CLR_BORDER, 2, "<<include>>", True, True)
+    draw_arrow(draw, (530, 740), (545, 555), CLR_BORDER, 2, "<<include>>", True, True)
+    draw_arrow(draw, (820, 665), (805, 675), CLR_BORDER, 2, "<<include>>", True, True)
 
     save_image(img, "02_Use_Case_Diagram.jpg")
 

@@ -63,6 +63,9 @@ builder.Services.AddDbContext<PaymentDbContext>(options =>
 
 builder.Services.AddPharmacyJwtAuthentication(builder.Configuration);
 
+// Add HttpClient for Inter-Service Communication (Order validation)
+builder.Services.AddHttpClient();
+
 // Register Repositories and Services (Internal MVC pattern)
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceClass>();

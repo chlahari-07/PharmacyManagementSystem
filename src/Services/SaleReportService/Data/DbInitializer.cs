@@ -12,6 +12,10 @@ public static class DbInitializer
         {
             if (context.Database.IsRelational())
             {
+                await context.Database.MigrateAsync();
+            }
+            else
+            {
                 await context.Database.EnsureCreatedAsync();
             }
         }

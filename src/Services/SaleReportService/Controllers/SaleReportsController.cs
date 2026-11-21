@@ -59,6 +59,10 @@ public class SaleReportsController : ControllerBase
         }
 
         var result = await _saleReportService.GenerateReportAsync(dto);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
         return CreatedAtAction(nameof(GetReportById), new { id = result.Data!.SaleReportId }, result);
     }
 

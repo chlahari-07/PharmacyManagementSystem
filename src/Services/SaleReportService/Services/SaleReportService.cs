@@ -38,6 +38,11 @@ public class SaleReportServiceClass : ISaleReportService
 
     public async Task<ApiResponse<SaleReportDto>> GenerateReportAsync(GenerateSaleReportRequestDto dto)
     {
+        if (dto.FromDate.HasValue && dto.ToDate.HasValue && dto.FromDate.Value > dto.ToDate.Value)
+        {
+            return ApiResponse<SaleReportDto>.FailureResult("Sales report start date must be earlier than or equal to the end date.");
+        }
+
         DateTime fromDate;
         DateTime toDate = dto.ToDate ?? DateTime.UtcNow;
 

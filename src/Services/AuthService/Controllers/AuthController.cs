@@ -65,9 +65,10 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Get current logged-in user profile
+    /// Get current logged-in user profile (current user endpoint)
     /// </summary>
     [Authorize]
+    [HttpGet("current-user")]
     [HttpGet("profile")]
     [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

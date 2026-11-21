@@ -1,10 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using AuthService.Data;
 using AuthService.DTOs;
 using AuthService.Models;
 using AuthService.Repositories;
 using AuthService.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using NUnit.Framework;
 using PharmacyManagement.Common.Models;
 using PharmacyManagement.Common.Security;
@@ -16,7 +16,7 @@ public class AuthServiceTests
 {
     private AuthDbContext _context = null!;
     private IUserRepository _userRepository = null!;
-    private IJwtTokenGenerator _tokenGenerator = null!;
+    private JwtSettings _jwtSettings = null!;
     private IAuthService _authService = null!;
 
     [SetUp]
@@ -28,18 +28,9 @@ public class AuthServiceTests
 
         _context = new AuthDbContext(options);
         _userRepository = new UserRepository(_context);
+        _jwtSettings = new JwtSettings();
 
-        var configValues = new Dictionary<string, string?>
-        {
-            {"Jwt:Key", "SuperSecretKeyForPharmacyManagementSystem2026SecureJwtToken!"},
-            {"Jwt:Issuer", "PharmacyAuthService"},
-            {"Jwt:Audience", "PharmacyManagementApp"},
-            {"Jwt:ExpiryHours", "8"}
-        };
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(configValues).Build();
-        _tokenGenerator = new JwtTokenGenerator(configuration);
-
-        _authService = new AuthServiceClass(_userRepository, _tokenGenerator);
+        _authService = new AuthServiceClass(_userRepository, _jwtSettings);
     }
 
     [TearDown]
@@ -54,10 +45,10 @@ public class AuthServiceTests
         // Arrange
         var registerDto = new RegisterDto
         {
-            Name = "Dr. John Watson",
-            Email = "john.watson@pharmacy.com",
+            Name = "Doctor1",
+            Email = "doctor@test.com",
             PhoneNumber = "+1234567890",
-            Password = "SecurePassword123!",
+            Password = "Test@123",
             Role = UserRoles.Doctor
         };
 
@@ -67,7 +58,7 @@ public class AuthServiceTests
         // Assert
         Assert.That(result.Success, Is.True);
         Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.Email, Is.EqualTo("john.watson@pharmacy.com"));
+        Assert.That(result.Data!.Email, Is.EqualTo("doctor@test.com"));
         Assert.That(result.Data.Role, Is.EqualTo(UserRoles.Doctor));
         Assert.That(result.Data.Token, Is.Not.Null.And.Not.Empty);
     }
@@ -78,21 +69,22 @@ public class AuthServiceTests
         // Arrange
         var existingUser = new User
         {
-            Name = "Dr. Existing",
-            Email = "duplicate@pharmacy.com",
-            PhoneNumber = "+1112223333",
-            PasswordHash = PasswordHasher.HashPassword("Password123!"),
-            Role = UserRoles.Doctor
+            Name = "Doctor1",
+            Email = "doctor@test.com",
+            PhoneNumber = "+1234567890",
+            PasswordHash = PasswordHasher.HashPassword("Test@123"),
+            Role = UserRoles.Doctor,
+            IsActive = true
         };
         await _context.Users.AddAsync(existingUser);
         await _context.SaveChangesAsync();
 
         var duplicateDto = new RegisterDto
         {
-            Name = "Dr. Impostor",
-            Email = "duplicate@pharmacy.com",
+            Name = "Doctor Impostor",
+            Email = "doctor@test.com",
             PhoneNumber = "+9998887777",
-            Password = "NewPassword123!",
+            Password = "Test@123",
             Role = UserRoles.Doctor
         };
 
@@ -108,21 +100,22 @@ public class AuthServiceTests
     public async Task TC03_Login_ValidCredentials_ReturnsSuccessAndJwtToken()
     {
         // Arrange
-        var password = "AdminPassword2026!";
-        var adminUser = new User
+        var password = "Test@123";
+        var user = new User
         {
-            Name = "Admin User",
-            Email = "admin@pharmacy.com",
-            PhoneNumber = "+1999888777",
+            Name = "Doctor1",
+            Email = "doctor@test.com",
+            PhoneNumber = "+1234567890",
             PasswordHash = PasswordHasher.HashPassword(password),
-            Role = UserRoles.Admin
+            Role = UserRoles.Doctor,
+            IsActive = true
         };
-        await _context.Users.AddAsync(adminUser);
+        await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
         var loginDto = new LoginDto
         {
-            Email = "admin@pharmacy.com",
+            Email = "doctor@test.com",
             Password = password
         };
 
@@ -132,7 +125,7 @@ public class AuthServiceTests
         // Assert
         Assert.That(result.Success, Is.True);
         Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.Role, Is.EqualTo(UserRoles.Admin));
+        Assert.That(result.Data!.Role, Is.EqualTo(UserRoles.Doctor));
         Assert.That(result.Data.Token, Is.Not.Empty);
     }
 
@@ -142,19 +135,20 @@ public class AuthServiceTests
         // Arrange
         var user = new User
         {
-            Name = "Dr. Valid",
-            Email = "doctor@pharmacy.com",
+            Name = "Doctor1",
+            Email = "doctor@test.com",
             PhoneNumber = "+1234567890",
-            PasswordHash = PasswordHasher.HashPassword("CorrectPassword123!"),
-            Role = UserRoles.Doctor
+            PasswordHash = PasswordHasher.HashPassword("Test@123"),
+            Role = UserRoles.Doctor,
+            IsActive = true
         };
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
 
         var loginDto = new LoginDto
         {
-            Email = "doctor@pharmacy.com",
-            Password = "WrongPassword999!"
+            Email = "doctor@test.com",
+            Password = "Wrong123"
         };
 
         // Act
@@ -163,5 +157,75 @@ public class AuthServiceTests
         // Assert
         Assert.That(result.Success, Is.False);
         Assert.That(result.Message, Does.Contain("Invalid email or password"));
+    }
+
+    [Test]
+    public async Task TC_AdminCannotRegister_AdminRegistrationRejected_AdminCanOnlyLogin()
+    {
+        // Arrange
+        var adminRegisterDto = new RegisterDto
+        {
+            Name = "New Admin",
+            Email = "newadmin@pharmacy.com",
+            PhoneNumber = "+1122334455",
+            Password = "AdminPassword@123",
+            Role = UserRoles.Admin
+        };
+
+        // Act
+        var result = await _authService.RegisterAsync(adminRegisterDto);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Message, Does.Contain("Admin registration is not allowed"));
+        Assert.That(result.Errors, Does.Contain("Only Doctor accounts can be registered. Administrators cannot register."));
+    }
+
+    [Test]
+    public void TC21_Register_InvalidEmailFormat_FailsDataAnnotationValidation()
+    {
+        // Arrange
+        var dto = new RegisterDto
+        {
+            Name = "Doctor1",
+            Email = "doctortest.com", // Invalid email format
+            PhoneNumber = "+1234567890",
+            Password = "Test@123",
+            Role = UserRoles.Doctor
+        };
+
+        var validationResults = new List<ValidationResult>();
+        var context = new ValidationContext(dto);
+
+        // Act
+        bool isValid = Validator.TryValidateObject(dto, context, validationResults, true);
+
+        // Assert
+        Assert.That(isValid, Is.False);
+        Assert.That(validationResults.Any(r => r.ErrorMessage!.Contains("email", StringComparison.OrdinalIgnoreCase)), Is.True);
+    }
+
+    [Test]
+    public void TC22_Register_MissingRequiredFields_FailsValidation()
+    {
+        // Arrange: Missing Name
+        var dto = new RegisterDto
+        {
+            Name = "", // Empty name
+            Email = "doctor@test.com",
+            PhoneNumber = "+1234567890",
+            Password = "Test@123",
+            Role = UserRoles.Doctor
+        };
+
+        var validationResults = new List<ValidationResult>();
+        var context = new ValidationContext(dto);
+
+        // Act
+        bool isValid = Validator.TryValidateObject(dto, context, validationResults, true);
+
+        // Assert
+        Assert.That(isValid, Is.False);
+        Assert.That(validationResults.Any(r => r.ErrorMessage!.Contains("Name is required")), Is.True);
     }
 }

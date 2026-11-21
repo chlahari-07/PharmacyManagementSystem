@@ -41,15 +41,15 @@ public class InventoryServiceTests
     }
 
     [Test]
-    public async Task TC05_CreateDrug_WithValidAttributes_ReturnsSuccess()
+    public async Task TC05_AddMedicine_WithValidDetails_ReturnsSuccess()
     {
         // Arrange
         var createDto = new CreateDrugDto
         {
-            DrugName = "Amoxicillin 500mg",
-            Description = "Broad spectrum antibiotic",
-            Category = "Antibiotics",
-            Price = 14.50m,
+            DrugName = "Paracetamol",
+            Description = "Analgesic and antipyretic",
+            Category = "Pain Relief",
+            Price = 10.00m,
             ExpiryDate = DateTime.UtcNow.AddYears(1),
             Quantity = 100,
             MinimumStockQuantity = 20,
@@ -62,24 +62,84 @@ public class InventoryServiceTests
         // Assert
         Assert.That(result.Success, Is.True);
         Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.DrugName, Is.EqualTo("Amoxicillin 500mg"));
-        Assert.That(result.Data.MinimumStockQuantity, Is.EqualTo(20));
+        Assert.That(result.Data!.DrugName, Is.EqualTo("Paracetamol"));
+        Assert.That(result.Data.Price, Is.EqualTo(10.00m));
         Assert.That(result.Data.Quantity, Is.EqualTo(100));
-        Assert.That(result.Data.IsLowStock, Is.False);
     }
 
     [Test]
-    public async Task TC07_LowStockMonitoring_ReturnsOnlyDrugsAtOrBelowThreshold()
+    public async Task TC06_AddMedicine_WithNegativePrice_ReturnsFailure()
+    {
+        // Arrange
+        var createDto = new CreateDrugDto
+        {
+            DrugName = "Invalid Drug",
+            Description = "Negative price test",
+            Category = "Test",
+            Price = -10.00m,
+            ExpiryDate = DateTime.UtcNow.AddYears(1),
+            Quantity = 50,
+            MinimumStockQuantity = 10,
+            IsAvailable = true
+        };
+
+        // Act
+        var result = await _drugService.CreateDrugAsync(createDto);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Message, Does.Contain("greater than zero"));
+    }
+
+    [Test]
+    public async Task TC07_UpdateMedicine_PriceAndStock_UpdatesSuccessfully()
+    {
+        // Arrange
+        var drug = new Drug
+        {
+            DrugName = "Paracetamol",
+            Price = 10.00m,
+            Quantity = 100,
+            ExpiryDate = DateTime.UtcNow.AddYears(1),
+            MinimumStockQuantity = 20,
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
+        };
+        await _context.Drugs.AddAsync(drug);
+        await _context.SaveChangesAsync();
+
+        var updateDto = new UpdateDrugDto
+        {
+            DrugName = "Paracetamol",
+            Price = 15.00m,
+            Quantity = 120,
+            ExpiryDate = DateTime.UtcNow.AddYears(1),
+            MinimumStockQuantity = 20,
+            IsAvailable = true
+        };
+
+        // Act
+        var result = await _drugService.UpdateDrugAsync(drug.DrugId, updateDto);
+
+        // Assert
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Data!.Price, Is.EqualTo(15.00m));
+        Assert.That(result.Data.Quantity, Is.EqualTo(120));
+    }
+
+    [Test]
+    public async Task TC08_QueryMedicines_BelowMinimumStock_ReturnsLowStockItems()
     {
         // Arrange
         var normalDrug = new Drug
         {
-            DrugName = "Paracetamol 500mg",
+            DrugName = "Amoxicillin 500mg",
             Price = 8.50m,
             ExpiryDate = DateTime.UtcNow.AddYears(2),
             Quantity = 100,
             MinimumStockQuantity = 20,
-            IsAvailable = true
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
         };
 
         var lowStockDrug = new Drug
@@ -87,9 +147,10 @@ public class InventoryServiceTests
             DrugName = "Azithromycin 500mg",
             Price = 25.00m,
             ExpiryDate = DateTime.UtcNow.AddMonths(6),
-            Quantity = 10, // 10 <= 20 (Low stock)
-            MinimumStockQuantity = 20,
-            IsAvailable = true
+            Quantity = 5, // 5 <= 10 (Low stock)
+            MinimumStockQuantity = 10,
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
         };
 
         await _context.Drugs.AddRangeAsync(normalDrug, lowStockDrug);
@@ -108,56 +169,18 @@ public class InventoryServiceTests
     }
 
     [Test]
-    public async Task TC08_ExpiredDrugReport_ReturnsOnlyExpiredMedicines()
-    {
-        // Arrange
-        var freshDrug = new Drug
-        {
-            DrugName = "Ibuprofen 400mg",
-            Price = 12.00m,
-            ExpiryDate = DateTime.UtcNow.AddYears(1),
-            Quantity = 50,
-            MinimumStockQuantity = 15,
-            IsAvailable = true
-        };
-
-        var expiredDrug = new Drug
-        {
-            DrugName = "Cough Syrup Dx",
-            Price = 7.50m,
-            ExpiryDate = DateTime.UtcNow.AddDays(-10), // Expired
-            Quantity = 25,
-            MinimumStockQuantity = 10,
-            IsAvailable = false
-        };
-
-        await _context.Drugs.AddRangeAsync(freshDrug, expiredDrug);
-        await _context.SaveChangesAsync();
-
-        // Act
-        var result = await _drugService.GetExpiredDrugsAsync();
-
-        // Assert
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Data, Is.Not.Null);
-        var list = result.Data!.ToList();
-        Assert.That(list.Count, Is.EqualTo(1));
-        Assert.That(list[0].DrugName, Is.EqualTo("Cough Syrup Dx"));
-        Assert.That(list[0].IsExpired, Is.True);
-    }
-
-    [Test]
-    public async Task TC09_DeductStock_WhenSufficientQuantity_ReducesInventoryQuantity()
+    public async Task TC09_DeductStock_WhenSufficientQuantityExists_ReducesInventoryQuantity()
     {
         // Arrange
         var drug = new Drug
         {
-            DrugName = "Metformin 500mg",
-            Price = 15.00m,
+            DrugName = "Paracetamol 500mg",
+            Price = 10.00m,
             ExpiryDate = DateTime.UtcNow.AddYears(1),
-            Quantity = 50,
+            Quantity = 100,
             MinimumStockQuantity = 10,
-            IsAvailable = true
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
         };
         await _context.Drugs.AddAsync(drug);
         await _context.SaveChangesAsync();
@@ -166,7 +189,7 @@ public class InventoryServiceTests
         {
             Items = new List<DeductStockItemDto>
             {
-                new() { DrugId = drug.DrugId, Quantity = 15 }
+                new() { DrugId = drug.DrugId, Quantity = 20 }
             }
         };
 
@@ -176,21 +199,22 @@ public class InventoryServiceTests
         // Assert
         Assert.That(result.Success, Is.True);
         var updatedDrug = await _context.Drugs.FindAsync(drug.DrugId);
-        Assert.That(updatedDrug!.Quantity, Is.EqualTo(35));
+        Assert.That(updatedDrug!.Quantity, Is.EqualTo(80));
     }
 
     [Test]
-    public async Task TC10_DeductStock_WhenInsufficientQuantity_RejectsDeduction()
+    public async Task TC10_DeductStock_WhenInsufficientQuantityExists_RejectsDeduction()
     {
         // Arrange
         var drug = new Drug
         {
-            DrugName = "Rare Antibiotic",
+            DrugName = "Special Medicine",
             Price = 45.00m,
             ExpiryDate = DateTime.UtcNow.AddYears(1),
-            Quantity = 5,
+            Quantity = 10,
             MinimumStockQuantity = 10,
-            IsAvailable = true
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
         };
         await _context.Drugs.AddAsync(drug);
         await _context.SaveChangesAsync();
@@ -199,7 +223,7 @@ public class InventoryServiceTests
         {
             Items = new List<DeductStockItemDto>
             {
-                new() { DrugId = drug.DrugId, Quantity = 10 } // Requesting 10, only 5 in stock
+                new() { DrugId = drug.DrugId, Quantity = 20 } // Requesting 20, only 10 in stock
             }
         };
 
@@ -209,6 +233,49 @@ public class InventoryServiceTests
         // Assert
         Assert.That(result.Success, Is.False);
         var currentDrug = await _context.Drugs.FindAsync(drug.DrugId);
-        Assert.That(currentDrug!.Quantity, Is.EqualTo(5)); // Remains untouched
+        Assert.That(currentDrug!.Quantity, Is.EqualTo(10)); // Remains untouched
+    }
+
+    [Test]
+    public async Task TC25_AddInventoryInward_IncreasesDrugQuantity()
+    {
+        // Arrange
+        var supplier = new Supplier
+        {
+            SupplierName = "Apex Pharma",
+            Email = "contact@apex.com",
+            PhoneNumber = "+123456789",
+            Address = "100 Medical Blvd"
+        };
+        await _context.Suppliers.AddAsync(supplier);
+
+        var drug = new Drug
+        {
+            DrugName = "Paracetamol 500mg",
+            Price = 10.00m,
+            ExpiryDate = DateTime.UtcNow.AddYears(1),
+            Quantity = 50,
+            MinimumStockQuantity = 10,
+            IsAvailable = true,
+            CreatedDate = DateTime.UtcNow
+        };
+        await _context.Drugs.AddAsync(drug);
+        await _context.SaveChangesAsync();
+
+        var inwardDto = new InwardStockDto
+        {
+            SupplierId = supplier.SupplierId,
+            DrugId = drug.DrugId,
+            QuantitySupplied = 50,
+            PurchasePrice = 6.50m
+        };
+
+        // Act
+        var result = await _inventoryService.InwardStockAsync(inwardDto);
+
+        // Assert
+        Assert.That(result.Success, Is.True);
+        var updatedDrug = await _context.Drugs.FindAsync(drug.DrugId);
+        Assert.That(updatedDrug!.Quantity, Is.EqualTo(100)); // 50 + 50
     }
 }

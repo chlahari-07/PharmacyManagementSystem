@@ -18,14 +18,65 @@ public interface IPaymentService
 public class PaymentServiceClass : IPaymentService
 {
     private readonly IPaymentRepository _paymentRepository;
+    private readonly IHttpClientFactory? _httpClientFactory;
 
-    public PaymentServiceClass(IPaymentRepository paymentRepository)
+    public PaymentServiceClass(IPaymentRepository paymentRepository, IHttpClientFactory? httpClientFactory = null)
     {
         _paymentRepository = paymentRepository;
+        _httpClientFactory = httpClientFactory;
+    }
+
+    private async Task<(bool Allowed, string? ErrorMessage)> ValidateOrderAsync(int orderId, decimal amount)
+    {
+        if (_httpClientFactory == null) return (true, null);
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri("http://localhost:5003");
+            var response = await client.GetAsync($"/api/orders/{orderId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var node = System.Text.Json.Nodes.JsonNode.Parse(content);
+                var data = node?["data"];
+                if (data != null)
+                {
+                    var status = data["status"]?.ToString();
+                    var totalAmount = data["totalAmount"]?.GetValue<decimal>() ?? 0;
+
+                    if (string.Equals(status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (false, "Cannot process payment for a cancelled order.");
+                    }
+
+                    if (totalAmount > 0 && amount != totalAmount)
+                    {
+                        return (false, $"Payment amount ({amount:F2}) does not match the calculated order total ({totalAmount:F2}).");
+                    }
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return (false, $"Order {orderId} does not exist.");
+            }
+        }
+        catch
+        {
+            // Decoupled / offline test resilience
+        }
+
+        return (true, null);
     }
 
     public async Task<ApiResponse<PaymentResponseDto>> ProcessPaymentAsync(ProcessPaymentDto dto)
     {
+        var (allowed, error) = await ValidateOrderAsync(dto.OrderId, dto.Amount);
+        if (!allowed)
+        {
+            return ApiResponse<PaymentResponseDto>.FailureResult(error ?? "Payment validation failed.");
+        }
+
         // 1:1 check: ensure payment doesn't already exist for this order
         var existing = await _paymentRepository.GetByOrderIdAsync(dto.OrderId);
         if (existing != null)
@@ -64,6 +115,12 @@ public class PaymentServiceClass : IPaymentService
 
     public async Task<ApiResponse<PaymentResponseDto>> SimulatePaymentAsync(SimulatePaymentDto dto)
     {
+        var (allowed, error) = await ValidateOrderAsync(dto.OrderId, dto.Amount);
+        if (!allowed)
+        {
+            return ApiResponse<PaymentResponseDto>.FailureResult(error ?? "Payment simulation failed.");
+        }
+
         var existing = await _paymentRepository.GetByOrderIdAsync(dto.OrderId);
         if (existing != null && existing.PaymentStatus == PaymentStatuses.Completed)
         {

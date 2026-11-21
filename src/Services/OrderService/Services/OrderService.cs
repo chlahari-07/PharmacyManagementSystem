@@ -70,7 +70,13 @@ public class OrderServiceClass : IOrderService
                 }).ToList()
             };
 
-            await _inventoryClient.DeductStockAsync(stockDeductRequest);
+            var stockDeducted = await _inventoryClient.DeductStockAsync(stockDeductRequest);
+            if (!stockDeducted)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult(
+                    "Cannot place order. Requested medicines are out of stock, expired, or exceed available inventory.",
+                    new List<string> { "Inventory stock deduction failed or medicine is expired/unavailable." });
+            }
         }
 
         var created = await _orderRepository.CreateOrderAsync(order);
@@ -231,10 +237,32 @@ public class OrderServiceClass : IOrderService
             return ApiResponse<OrderResponseDto>.FailureResult("Cannot cancel an order that has already been picked up.");
         }
 
+        if (order.Status == OrderStatuses.Cancelled)
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Order has already been cancelled.");
+        }
+
+        // Release / restore reserved medicine stock back to inventory for active pending or verified orders
+        if (order.Status == OrderStatuses.Pending || order.Status == OrderStatuses.Verified)
+        {
+            if (order.OrderItems.Any())
+            {
+                var releaseRequest = new InterServiceDeductStockRequest
+                {
+                    Items = order.OrderItems.Select(oi => new InterServiceDeductStockItem
+                    {
+                        DrugId = oi.DrugId,
+                        Quantity = oi.Quantity
+                    }).ToList()
+                };
+                await _inventoryClient.ReleaseStockAsync(releaseRequest);
+            }
+        }
+
         order.Status = OrderStatuses.Cancelled;
         await _orderRepository.UpdateOrderAsync(order);
 
-        return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(order), "Order cancelled successfully.");
+        return ApiResponse<OrderResponseDto>.SuccessResult(MapToDto(order), "Order cancelled successfully and reserved stock was released back to inventory.");
     }
 
     public async Task<ApiResponse<OrderResponseDto>> UpdateOrderStatusAsync(int orderId, string status)

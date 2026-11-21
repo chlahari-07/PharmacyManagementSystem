@@ -17,6 +17,7 @@ public interface IDrugService
     Task<ApiResponse<bool>> DeleteDrugAsync(int drugId);
     Task<ApiResponse<StockCheckResultDto>> CheckAvailabilityAsync(DeductStockRequestDto request);
     Task<ApiResponse<bool>> DeductStockAsync(DeductStockRequestDto request);
+    Task<ApiResponse<bool>> RestoreStockAsync(DeductStockRequestDto request);
 }
 
 public class DrugService : IDrugService
@@ -68,6 +69,15 @@ public class DrugService : IDrugService
 
     public async Task<ApiResponse<DrugDto>> CreateDrugAsync(CreateDrugDto dto)
     {
+        if (dto.Price <= 0)
+        {
+            return ApiResponse<DrugDto>.FailureResult("Medicine price must be greater than zero.");
+        }
+        if (dto.Quantity < 0)
+        {
+            return ApiResponse<DrugDto>.FailureResult("Stock quantity cannot be negative.");
+        }
+
         var drugName = !string.IsNullOrWhiteSpace(dto.DrugName) ? dto.DrugName.Trim() : dto.Name?.Trim() ?? string.Empty;
 
         var drug = new Drug
@@ -168,6 +178,31 @@ public class DrugService : IDrugService
         }
 
         return ApiResponse<bool>.SuccessResult(true, "Stock deducted successfully.");
+    }
+
+    public async Task<ApiResponse<bool>> RestoreStockAsync(DeductStockRequestDto request)
+    {
+        if (request?.Items == null || !request.Items.Any())
+        {
+            return ApiResponse<bool>.SuccessResult(true, "No items to restore.");
+        }
+
+        foreach (var item in request.Items)
+        {
+            var drug = await _drugRepository.GetByIdAsync(item.DrugId);
+            if (drug != null)
+            {
+                drug.Quantity += item.Quantity;
+                if (drug.Quantity > 0)
+                {
+                    drug.IsAvailable = true;
+                }
+                drug.UpdatedDate = DateTime.UtcNow;
+                await _drugRepository.UpdateAsync(drug);
+            }
+        }
+
+        return ApiResponse<bool>.SuccessResult(true, "Stock restored successfully.");
     }
 
     private static DrugDto MapToDto(Drug drug) => new()

@@ -28,6 +28,14 @@ public class AuthService : IAuthService
 
     public async Task<ApiResponse<AuthResponseDto>> RegisterAsync(RegisterDto dto)
     {
+        // Admin registration is prohibited - Admin accounts are pre-seeded
+        if (string.Equals(dto.Role, UserRoles.Admin, StringComparison.OrdinalIgnoreCase))
+        {
+            return ApiResponse<AuthResponseDto>.FailureResult(
+                "Admin registration is not allowed. Admin credentials are pre-seeded in the database.",
+                new List<string> { "Only Doctor accounts can be registered. Administrators cannot register." });
+        }
+
         if (await _userRepository.EmailExistsAsync(dto.Email))
         {
             return ApiResponse<AuthResponseDto>.FailureResult(
@@ -35,17 +43,13 @@ public class AuthService : IAuthService
                 new List<string> { "Email is already registered." });
         }
 
-        var normalizedRole = dto.Role.Equals(UserRoles.Admin, StringComparison.OrdinalIgnoreCase)
-            ? UserRoles.Admin
-            : UserRoles.Doctor;
-
         var user = new User
         {
             Name = dto.Name.Trim(),
             Email = dto.Email.Trim().ToLower(),
             PhoneNumber = dto.PhoneNumber.Trim(),
             PasswordHash = PasswordHasher.HashPassword(dto.Password),
-            Role = normalizedRole,
+            Role = UserRoles.Doctor,
             IsActive = true,
             CreatedDate = DateTime.UtcNow
         };
@@ -159,4 +163,9 @@ public class AuthService : IAuthService
         bool isValid = user.Role.Equals(expectedRole, StringComparison.OrdinalIgnoreCase);
         return ApiResponse<bool>.SuccessResult(isValid, isValid ? "User role verified." : "Role mismatch.");
     }
+}
+
+public class AuthServiceClass : AuthService
+{
+    public AuthServiceClass(IUserRepository userRepository, JwtSettings jwtSettings) : base(userRepository, jwtSettings) { }
 }

@@ -10,7 +10,7 @@ from reportlab.pdfgen import canvas
 
 # Output Paths
 WORKSPACE_PDF = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\PharmacyManagement_LLD.pdf"
-ARTIFACT_PDF = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\fbadf837-bfa5-49ff-a097-c847f39ee39a\PharmacyManagement_LLD.pdf"
+ARTIFACT_PDF = r"C:\Users\chikoti lahari\.gemini\antigravity\brain\1b3064b5-dfd3-4cc3-896f-67b0eb16619c\PharmacyManagement_LLD.pdf"
 DIAGRAMS_DIR = r"c:\Users\chikoti lahari\OneDrive\Desktop\pharmacyManagement\docs\diagrams"
 
 # Corporate Color Palette (Matching Template)

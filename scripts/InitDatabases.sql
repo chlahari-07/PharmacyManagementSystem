@@ -34,14 +34,15 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_Users_Role ON [dbo].[Users] ([Role] ASC);
 
     -- Seed Initial Admin and Doctor Users
+    -- Admin is strictly pre-seeded (Admin cannot register; can only log in)
     -- Password for Admin: 'Admin@123'
     -- Password for Doctor: 'Doctor@123'
     INSERT INTO [dbo].[Users] ([Name], [Email], [PhoneNumber], [PasswordHash], [Role], [IsActive], [CreatedDate])
     VALUES 
     (N'System Administrator', N'admin@pharmacy.com', N'+1234567890', 
-     N't5/1xWp8i16yE0K/0c/X6eG1rLqLh281eQ22tqf2gZkP+rUjXo7/52bZfW7mE9xGz6wV', N'Admin', 1, SYSUTCDATETIME()),
+     N'OSRURIaBMPUBllVO4w7cvpsa+68ksrQugHPf9n5h+BLF9RP+mtYdcJY9a+zogOYM', N'Admin', 1, SYSUTCDATETIME()),
     (N'Dr. Robert Smith', N'doctor@pharmacy.com', N'+1987654321', 
-     N't5/1xWp8i16yE0K/0c/X6eG1rLqLh281eQ22tqf2gZkP+rUjXo7/52bZfW7mE9xGz6wV', N'Doctor', 1, SYSUTCDATETIME());
+     N'w6+goA5m1GDOi2lH3Y/mzVTtjz4e+OrR4RJXNbUh8k0O64N8NxDfubkLJqI1xT9y', N'Doctor', 1, SYSUTCDATETIME());
 END
 GO
 

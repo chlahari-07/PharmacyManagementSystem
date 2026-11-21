@@ -22,9 +22,8 @@ public class RegisterDto
     [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
     public string Password { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Role is required (Admin or Doctor).")]
-    [RegularExpression("^(Admin|Doctor)$", ErrorMessage = "Role must be either 'Admin' or 'Doctor'.")]
-    public string Role { get; set; } = string.Empty;
+    [RegularExpression("^(?i)(Doctor)$", ErrorMessage = "Only Doctor accounts can be registered. Administrators cannot register and must log in using pre-seeded credentials.")]
+    public string Role { get; set; } = "Doctor";
 }
 
 public class LoginDto

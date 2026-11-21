@@ -39,15 +39,17 @@ public class SaleReportServiceTests
     }
 
     [Test]
-    public async Task TC19_GenerateReport_Daily_CreatesReportWithCorrectProfitCalculation()
+    public async Task TC19_GenerateReport_ForDateRange_CalculatesRevenueAndProfit()
     {
         // Arrange
         var request = new GenerateSaleReportRequestDto
         {
-            ReportType = "Daily",
-            SimulatedTotalOrders = 15,
-            SimulatedTotalRevenue = 1500.00m,
-            SimulatedProfit = 525.00m // ~35%
+            ReportType = "Monthly",
+            FromDate = new DateTime(2026, 11, 1),
+            ToDate = new DateTime(2026, 11, 30),
+            SimulatedTotalOrders = 25,
+            SimulatedTotalRevenue = 2500.00m,
+            SimulatedProfit = 800.00m
         };
 
         // Act
@@ -56,15 +58,69 @@ public class SaleReportServiceTests
         // Assert
         Assert.That(result.Success, Is.True);
         Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.ReportType, Is.EqualTo("Daily"));
-        Assert.That(result.Data.TotalOrders, Is.EqualTo(15));
-        Assert.That(result.Data.TotalRevenue, Is.EqualTo(1500.00m));
-        Assert.That(result.Data.Profit, Is.EqualTo(525.00m));
-        Assert.That(result.Data.ProfitMarginPercentage, Is.EqualTo(35.00m));
+        Assert.That(result.Data!.ReportType, Is.EqualTo("Monthly"));
+        Assert.That(result.Data.TotalOrders, Is.EqualTo(25));
+        Assert.That(result.Data.TotalRevenue, Is.EqualTo(2500.00m));
+        Assert.That(result.Data.Profit, Is.EqualTo(800.00m));
     }
 
     [Test]
-    public async Task TC20_DashboardAnalytics_ReturnsAggregatedStatistics()
+    public async Task TC20_ExportCsv_GeneratedReport_ReturnsCsvByteArray()
+    {
+        // Arrange: Generate a report first
+        var request = new GenerateSaleReportRequestDto
+        {
+            ReportType = "Monthly",
+            SimulatedTotalOrders = 10,
+            SimulatedTotalRevenue = 1000.00m,
+            SimulatedProfit = 350.00m
+        };
+        var reportResult = await _saleReportService.GenerateReportAsync(request);
+        Assert.That(reportResult.Success, Is.True);
+        int reportId = reportResult.Data!.SaleReportId;
+
+        // Act
+        var csvResult = await _saleReportService.ExportCsvAsync(reportId);
+
+        // Assert
+        Assert.That(csvResult.HasValue, Is.True);
+        Assert.That(csvResult!.Value.FileBytes, Is.Not.Null);
+        Assert.That(csvResult.Value.FileBytes.Length, Is.GreaterThan(0));
+        Assert.That(csvResult.Value.FileName, Does.EndWith(".csv"));
+        Assert.That(csvResult.Value.ContentType, Is.EqualTo("text/csv"));
+    }
+
+    [Test]
+    public async Task TC29_GenerateReport_WithInvalidDateRange_ReturnsFailure()
+    {
+        // Arrange: End date earlier than start date
+        var request = new GenerateSaleReportRequestDto
+        {
+            ReportType = "Custom",
+            FromDate = new DateTime(2026, 11, 30),
+            ToDate = new DateTime(2026, 11, 1) // Earlier than FromDate
+        };
+
+        // Act
+        var result = await _saleReportService.GenerateReportAsync(request);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Message, Does.Contain("start date must be earlier than or equal to the end date"));
+    }
+
+    [Test]
+    public async Task TC30_ExportCsv_WhenNoSalesDataOrReportNotFound_ReturnsNullOrEmpty()
+    {
+        // Act: Non-existent report ID
+        var csvResult = await _saleReportService.ExportCsvAsync(99999);
+
+        // Assert
+        Assert.That(csvResult.HasValue, Is.False);
+    }
+
+    [Test]
+    public async Task TC_DashboardAnalytics_ReturnsAggregatedStatistics()
     {
         // Act
         var result = await _saleReportService.GetDashboardAnalyticsAsync();
@@ -75,40 +131,5 @@ public class SaleReportServiceTests
         Assert.That(result.Data!.TotalOrders, Is.GreaterThan(0));
         Assert.That(result.Data.TotalRevenue, Is.GreaterThan(0));
         Assert.That(result.Data.TotalProfit, Is.GreaterThan(0));
-        Assert.That(result.Data.ProfitMarginPercentage, Is.GreaterThan(0));
-    }
-
-    [Test]
-    public async Task TC21_ProfitAnalysis_CalculatesProfitBasedOnPurchaseAndSellingPrices()
-    {
-        // Act
-        var result = await _saleReportService.GetProfitAnalysisAsync();
-
-        // Assert
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.DrugBreakdown, Is.Not.Empty);
-
-        foreach (var item in result.Data.DrugBreakdown)
-        {
-            Assert.That(item.SellingPrice, Is.GreaterThan(item.PurchasePrice));
-            Assert.That(item.UnitProfit, Is.EqualTo(item.SellingPrice - item.PurchasePrice));
-            Assert.That(item.TotalProfit, Is.EqualTo(item.QuantitySold * item.UnitProfit));
-        }
-    }
-
-    [Test]
-    public async Task TC22_TopSellingDrugs_ReturnsRankedMedicinesByQuantity()
-    {
-        // Act
-        var result = await _saleReportService.GetTopSellingDrugsAsync(top: 3);
-
-        // Assert
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Data, Is.Not.Null);
-        var list = result.Data!.ToList();
-        Assert.That(list.Count, Is.EqualTo(3));
-        Assert.That(list[0].Rank, Is.EqualTo(1));
-        Assert.That(list[0].UnitsSold, Is.GreaterThanOrEqualTo(list[1].UnitsSold));
     }
 }

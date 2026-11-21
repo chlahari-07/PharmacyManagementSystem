@@ -9,10 +9,14 @@ public static class DbInitializer
 {
     public static async Task InitializeAsync(AuthDbContext context)
     {
-        // Try migrations or ensure created for testing flexibility
+        // Apply EF Core migrations for relational DB (SQL Server) or ensure created for in-memory testing
         try
         {
             if (context.Database.IsRelational())
+            {
+                await context.Database.MigrateAsync();
+            }
+            else
             {
                 await context.Database.EnsureCreatedAsync();
             }

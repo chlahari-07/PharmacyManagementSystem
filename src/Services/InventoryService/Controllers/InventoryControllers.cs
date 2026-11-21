@@ -92,6 +92,7 @@ public class DrugsController : ControllerBase
         }
 
         var result = await _drugService.CreateDrugAsync(dto);
+        if (!result.Success) return BadRequest(result);
         return CreatedAtAction(nameof(GetDrugById), new { id = result.Data!.DrugId }, result);
     }
 
@@ -150,6 +151,17 @@ public class DrugsController : ControllerBase
     {
         var result = await _drugService.DeductStockAsync(request);
         if (!result.Success) return BadRequest(result);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Restore / Release stock when an order is cancelled (Inter-service / OrderService)
+    /// </summary>
+    [HttpPost("restore-stock")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestoreStock([FromBody] DeductStockRequestDto request)
+    {
+        var result = await _drugService.RestoreStockAsync(request);
         return Ok(result);
     }
 }
