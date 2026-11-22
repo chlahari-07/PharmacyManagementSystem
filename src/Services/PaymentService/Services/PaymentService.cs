@@ -15,55 +15,46 @@ public interface IPaymentService
     Task<ApiResponse<PaymentResponseDto>> UpdatePaymentStatusAsync(int paymentId, string newStatus);
 }
 
+/// <summary>
+/// Handles payment simulation and transaction recording.
+/// IMPORTANT: Payment processing is strictly simulated. No actual financial transactions or external payment gateways are used.
+/// </summary>
 public class PaymentServiceClass : IPaymentService
 {
     private readonly IPaymentRepository _paymentRepository;
-    private readonly IHttpClientFactory? _httpClientFactory;
+    private readonly IOrderServiceClient _orderServiceClient;
 
-    public PaymentServiceClass(IPaymentRepository paymentRepository, IHttpClientFactory? httpClientFactory = null)
+    public PaymentServiceClass(
+        IPaymentRepository paymentRepository,
+        IOrderServiceClient orderServiceClient)
     {
         _paymentRepository = paymentRepository;
-        _httpClientFactory = httpClientFactory;
+        _orderServiceClient = orderServiceClient;
     }
 
     private async Task<(bool Allowed, string? ErrorMessage)> ValidateOrderAsync(int orderId, decimal amount)
     {
-        if (_httpClientFactory == null) return (true, null);
-
-        try
+        // Inter-service call to verify order status and total with OrderService
+        var order = await _orderServiceClient.GetOrderForValidationAsync(orderId);
+        if (order == null)
         {
-            var client = _httpClientFactory.CreateClient();
-            client.BaseAddress = new Uri("http://localhost:5003");
-            var response = await client.GetAsync($"/api/orders/{orderId}");
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                var node = System.Text.Json.Nodes.JsonNode.Parse(content);
-                var data = node?["data"];
-                if (data != null)
-                {
-                    var status = data["status"]?.ToString();
-                    var totalAmount = data["totalAmount"]?.GetValue<decimal>() ?? 0;
-
-                    if (string.Equals(status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return (false, "Cannot process payment for a cancelled order.");
-                    }
-
-                    if (totalAmount > 0 && amount != totalAmount)
-                    {
-                        return (false, $"Payment amount ({amount:F2}) does not match the calculated order total ({totalAmount:F2}).");
-                    }
-                }
-            }
-            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                return (false, $"Order {orderId} does not exist.");
-            }
+            return (false, $"Order {orderId} does not exist or OrderService could not be contacted.");
         }
-        catch
+
+        if (string.Equals(order.Status, OrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
-            // Decoupled / offline test resilience
+            return (false, "Cannot process payment for a cancelled order.");
+        }
+
+        if (string.Equals(order.Status, OrderStatuses.PickedUp, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, "Cannot process payment for an order that has already been picked up.");
+        }
+
+        // Amount verification: payment amount must match order total
+        if (order.TotalAmount > 0 && Math.Abs(order.TotalAmount - amount) > 0.01m)
+        {
+            return (false, $"Payment amount (${amount:F2}) does not match the actual order total (${order.TotalAmount:F2}).");
         }
 
         return (true, null);
@@ -77,7 +68,7 @@ public class PaymentServiceClass : IPaymentService
             return ApiResponse<PaymentResponseDto>.FailureResult(error ?? "Payment validation failed.");
         }
 
-        // 1:1 check: ensure payment doesn't already exist for this order
+        // 1:1 check: ensure payment doesn't already exist and completed for this order
         var existing = await _paymentRepository.GetByOrderIdAsync(dto.OrderId);
         if (existing != null)
         {
@@ -88,15 +79,18 @@ public class PaymentServiceClass : IPaymentService
                     new List<string> { "Order is already paid." });
             }
 
-            // Retry failed payment
+            // Retry previously failed payment
             existing.Amount = dto.Amount;
             existing.PaymentMethod = dto.PaymentMethod;
             existing.PaymentStatus = PaymentStatuses.Completed;
             existing.PaymentDate = DateTime.UtcNow;
-            existing.TransactionReference = "TXN-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
+            existing.TransactionReference = "SIM-TXN-" + Guid.NewGuid().ToString("N")[..12].ToUpper();
             await _paymentRepository.UpdateAsync(existing);
 
-            return ApiResponse<PaymentResponseDto>.SuccessResult(MapToDto(existing), "Payment re-processed successfully.");
+            // Notify OrderService that payment succeeded -> verify order
+            await _orderServiceClient.UpdateOrderStatusToVerifiedAsync(dto.OrderId);
+
+            return ApiResponse<PaymentResponseDto>.SuccessResult(MapToDto(existing), "Payment re-processed successfully (Simulated).");
         }
 
         var payment = new Payment
@@ -105,12 +99,16 @@ public class PaymentServiceClass : IPaymentService
             Amount = dto.Amount,
             PaymentDate = DateTime.UtcNow,
             PaymentMethod = dto.PaymentMethod,
-            PaymentStatus = PaymentStatuses.Completed, // Simulating successful payment gateway response
-            TransactionReference = "TXN-" + Guid.NewGuid().ToString("N")[..12].ToUpper()
+            PaymentStatus = PaymentStatuses.Completed, // Simulating successful gateway completion
+            TransactionReference = "SIM-TXN-" + Guid.NewGuid().ToString("N")[..12].ToUpper()
         };
 
         var created = await _paymentRepository.AddAsync(payment);
-        return ApiResponse<PaymentResponseDto>.SuccessResult(MapToDto(created), "Payment processed successfully.");
+
+        // Notify OrderService that payment succeeded -> verify order
+        await _orderServiceClient.UpdateOrderStatusToVerifiedAsync(dto.OrderId);
+
+        return ApiResponse<PaymentResponseDto>.SuccessResult(MapToDto(created), "Payment processed successfully (Simulated).");
     }
 
     public async Task<ApiResponse<PaymentResponseDto>> SimulatePaymentAsync(SimulatePaymentDto dto)
@@ -128,7 +126,7 @@ public class PaymentServiceClass : IPaymentService
         }
 
         string status = dto.SimulateFailure ? PaymentStatuses.Failed : PaymentStatuses.Completed;
-        string txnRef = "SIM-TXN-" + Guid.NewGuid().ToString("N")[..10].ToUpper();
+        string txnRef = (dto.SimulateFailure ? "SIM-FAILED-" : "SIM-TXN-") + Guid.NewGuid().ToString("N")[..10].ToUpper();
 
         if (existing != null)
         {
@@ -139,9 +137,16 @@ public class PaymentServiceClass : IPaymentService
             existing.TransactionReference = txnRef;
             await _paymentRepository.UpdateAsync(existing);
 
+            if (!dto.SimulateFailure)
+            {
+                await _orderServiceClient.UpdateOrderStatusToVerifiedAsync(dto.OrderId);
+            }
+
             return ApiResponse<PaymentResponseDto>.SuccessResult(
                 MapToDto(existing),
-                dto.SimulateFailure ? "Payment simulation resulted in: FAILED" : "Payment simulation successful: COMPLETED");
+                dto.SimulateFailure
+                    ? "Payment simulation resulted in: FAILED (Simulated)"
+                    : "Payment simulation successful: COMPLETED (Simulated). No real money was transferred.");
         }
 
         var payment = new Payment
@@ -155,9 +160,17 @@ public class PaymentServiceClass : IPaymentService
         };
 
         var created = await _paymentRepository.AddAsync(payment);
+
+        if (!dto.SimulateFailure)
+        {
+            await _orderServiceClient.UpdateOrderStatusToVerifiedAsync(dto.OrderId);
+        }
+
         return ApiResponse<PaymentResponseDto>.SuccessResult(
             MapToDto(created),
-            dto.SimulateFailure ? "Payment simulation resulted in: FAILED" : "Payment simulation successful: COMPLETED");
+            dto.SimulateFailure
+                ? "Payment simulation resulted in: FAILED (Simulated)"
+                : "Payment simulation successful: COMPLETED (Simulated). No real money was transferred.");
     }
 
     public async Task<ApiResponse<PaymentResponseDto>> GetPaymentByOrderIdAsync(int orderId)

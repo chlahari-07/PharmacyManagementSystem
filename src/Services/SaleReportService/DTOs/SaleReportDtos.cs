@@ -90,10 +90,20 @@ public class TopSellingDrugDto
     public decimal TotalProfit { get; set; }
 }
 
-public class InterServiceOrderSummaryDto
+public class InterServiceOrderItemDto
+{
+    public int DrugId { get; set; }
+    public string DrugName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+}
+
+public class InterServiceOrderDetailsDto
 {
     public int OrderId { get; set; }
+    public int DoctorID { get; set; }
     public DateTime OrderDate { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
+    public List<InterServiceOrderItemDto> OrderItems { get; set; } = new();
 }

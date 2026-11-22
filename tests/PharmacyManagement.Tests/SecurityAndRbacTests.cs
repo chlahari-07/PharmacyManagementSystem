@@ -16,7 +16,10 @@ public class SecurityAndRbacTests
     [SetUp]
     public void SetUp()
     {
-        _jwtSettings = new JwtSettings();
+        _jwtSettings = new JwtSettings
+        {
+            SecretKey = "TestSuperSecretKeyForPharmacyManagement2026!@#$"
+        };
     }
 
     [Test]

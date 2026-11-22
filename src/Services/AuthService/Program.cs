@@ -47,7 +47,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Configure EF Core with SQL Server (fallback to InMemory if SQL Server unavailable)
+// Configure EF Core with SQL Server Express / Configurable connection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AuthDbContext>(options =>
 {
@@ -71,29 +71,38 @@ builder.Services.AddPharmacyJwtAuthentication(builder.Configuration);
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthService.Services.AuthService>();
 
+// Restrictive CORS: configure specific allowed origins from config or default local development ports
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000", "http://localhost:4200", "http://localhost:5000", "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("ConfiguredCorsPolicy", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
 var app = builder.Build();
 
-// Seed initial data
+// Apply migrations and seed initial data during startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var environment = services.GetRequiredService<IHostEnvironment>();
+
     try
     {
         var context = services.GetRequiredService<AuthDbContext>();
-        await DbInitializer.InitializeAsync(context);
+        await DbInitializer.InitializeAsync(context, logger, environment);
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the Auth database.");
+        logger.LogCritical(ex, "FATAL: AuthService database initialization failed. Halting application startup.");
+        throw; // Do not continue startup if database migration/initialization fails!
     }
 }
 
@@ -105,9 +114,47 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseCors("AllowAll");
+app.UseCors("ConfiguredCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Health check endpoints: /health/live and /health/ready
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "Healthy",
+    service = "AuthService",
+    timestamp = DateTime.UtcNow
+}));
+
+app.MapGet("/health/ready", async (AuthDbContext context) =>
+{
+    try
+    {
+        bool canConnect = await context.Database.CanConnectAsync();
+        if (canConnect)
+        {
+            return Results.Ok(new
+            {
+                status = "Ready",
+                service = "AuthService",
+                database = "Pharmacy_UserDB",
+                timestamp = DateTime.UtcNow
+            });
+        }
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "Unhealthy",
+            service = "AuthService",
+            error = ex.Message,
+            timestamp = DateTime.UtcNow
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapControllers();
 
 app.Run();

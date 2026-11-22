@@ -3,6 +3,7 @@ using InventoryService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PharmacyManagement.Common.Models;
+using PharmacyManagement.Common.Security;
 
 namespace InventoryService.Controllers;
 
@@ -131,10 +132,12 @@ public class DrugsController : ControllerBase
     }
 
     /// <summary>
-    /// Check stock availability for multiple drug items (Inter-service / OrderService)
+    /// Check stock availability for multiple drug items (Internal / OrderService / Admin)
     /// </summary>
+    [InternalOrAdminAuthorize]
     [HttpPost("check-availability")]
     [ProducesResponseType(typeof(ApiResponse<StockCheckResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CheckAvailability([FromBody] DeductStockRequestDto request)
     {
         var result = await _drugService.CheckAvailabilityAsync(request);
@@ -142,11 +145,13 @@ public class DrugsController : ControllerBase
     }
 
     /// <summary>
-    /// Deduct stock for ordered items (Inter-service / OrderService)
+    /// Deduct stock for ordered items (Internal / OrderService / Admin)
     /// </summary>
+    [InternalOrAdminAuthorize]
     [HttpPost("deduct-stock")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeductStock([FromBody] DeductStockRequestDto request)
     {
         var result = await _drugService.DeductStockAsync(request);
@@ -155,13 +160,17 @@ public class DrugsController : ControllerBase
     }
 
     /// <summary>
-    /// Restore / Release stock when an order is cancelled (Inter-service / OrderService)
+    /// Restore / Release stock when an order is cancelled (Internal / OrderService / Admin)
     /// </summary>
+    [InternalOrAdminAuthorize]
     [HttpPost("restore-stock")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> RestoreStock([FromBody] DeductStockRequestDto request)
     {
         var result = await _drugService.RestoreStockAsync(request);
+        if (!result.Success) return BadRequest(result);
         return Ok(result);
     }
 }

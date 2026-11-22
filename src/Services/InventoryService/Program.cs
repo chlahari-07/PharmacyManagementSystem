@@ -72,26 +72,38 @@ builder.Services.AddScoped<IDrugService, DrugService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<IInventoryService, InventoryServiceClass>();
 
+// Restrictive CORS
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000", "http://localhost:4200", "http://localhost:5000", "http://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    options.AddPolicy("ConfiguredCorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();
 
-// Seed initial data
+// Seed initial data during startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var environment = services.GetRequiredService<IHostEnvironment>();
+
     try
     {
         var context = services.GetRequiredService<InventoryDbContext>();
-        await DbInitializer.InitializeAsync(context);
+        await DbInitializer.InitializeAsync(context, logger, environment);
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the Inventory database.");
+        logger.LogCritical(ex, "FATAL: InventoryService database initialization failed. Halting application startup.");
+        throw;
     }
 }
 
@@ -102,9 +114,47 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseCors("AllowAll");
+app.UseCors("ConfiguredCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Health check endpoints: /health/live and /health/ready
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "Healthy",
+    service = "InventoryService",
+    timestamp = DateTime.UtcNow
+}));
+
+app.MapGet("/health/ready", async (InventoryDbContext context) =>
+{
+    try
+    {
+        bool canConnect = await context.Database.CanConnectAsync();
+        if (canConnect)
+        {
+            return Results.Ok(new
+            {
+                status = "Ready",
+                service = "InventoryService",
+                database = "Pharmacy_InventoryDB",
+                timestamp = DateTime.UtcNow
+            });
+        }
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "Unhealthy",
+            service = "InventoryService",
+            error = ex.Message,
+            timestamp = DateTime.UtcNow
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapControllers();
 
 app.Run();

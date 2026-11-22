@@ -153,28 +153,46 @@ public class DrugService : IDrugService
 
     public async Task<ApiResponse<bool>> DeductStockAsync(DeductStockRequestDto request)
     {
-        // First verify availability for all items
+        if (request?.Items == null || !request.Items.Any())
+        {
+            return ApiResponse<bool>.FailureResult("No items provided for stock deduction.");
+        }
+
+        // Validate that all quantities are strictly positive
+        if (request.Items.Any(i => i.Quantity <= 0))
+        {
+            return ApiResponse<bool>.FailureResult("Quantity to deduct must be strictly greater than zero for all items.");
+        }
+
+        // First verify availability and expiry for all items
         var check = await CheckAvailabilityAsync(request);
         if (!check.Data!.IsAvailable)
         {
-            return ApiResponse<bool>.FailureResult("Cannot deduct stock. Some items are unavailable.", check.Data.OutOfStockItems);
+            return ApiResponse<bool>.FailureResult("Cannot deduct stock. Some items are unavailable, expired, or have insufficient stock.", check.Data.OutOfStockItems);
         }
 
-        // Apply deduction atomically
+        // Atomic double-check and deduction to prevent negative stock
         foreach (var item in request.Items)
         {
             var drug = await _drugRepository.GetByIdAsync(item.DrugId);
-            if (drug != null)
+            if (drug == null)
             {
-                drug.Quantity -= item.Quantity;
-                if (drug.Quantity <= 0)
-                {
-                    drug.Quantity = 0;
-                    drug.IsAvailable = false;
-                }
-                drug.UpdatedDate = DateTime.UtcNow;
-                await _drugRepository.UpdateAsync(drug);
+                return ApiResponse<bool>.FailureResult($"Drug with ID {item.DrugId} was not found.");
             }
+
+            if (drug.Quantity < item.Quantity)
+            {
+                return ApiResponse<bool>.FailureResult(
+                    $"Insufficient stock for '{drug.DrugName}'. Requested: {item.Quantity}, Available: {drug.Quantity}. Stock cannot become negative.");
+            }
+
+            drug.Quantity -= item.Quantity;
+            if (drug.Quantity == 0)
+            {
+                drug.IsAvailable = false;
+            }
+            drug.UpdatedDate = DateTime.UtcNow;
+            await _drugRepository.UpdateAsync(drug);
         }
 
         return ApiResponse<bool>.SuccessResult(true, "Stock deducted successfully.");
@@ -185,6 +203,12 @@ public class DrugService : IDrugService
         if (request?.Items == null || !request.Items.Any())
         {
             return ApiResponse<bool>.SuccessResult(true, "No items to restore.");
+        }
+
+        // Validate positive restoration quantities
+        if (request.Items.Any(i => i.Quantity <= 0))
+        {
+            return ApiResponse<bool>.FailureResult("Quantity to restore must be strictly greater than zero.");
         }
 
         foreach (var item in request.Items)

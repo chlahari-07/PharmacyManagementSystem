@@ -16,7 +16,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Pharmacy Management - Order Service API",
         Version = "v1",
-        Description = "Microservice for Managing Doctor Orders, Validation, Verification, and PickedUp status"
+        Description = "Microservice for Cart, Orders, Stock Deduction, Verification & Pickup Management"
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -63,38 +63,50 @@ builder.Services.AddDbContext<OrderDbContext>(options =>
 
 builder.Services.AddPharmacyJwtAuthentication(builder.Configuration);
 
-// HttpClient to InventoryService for stock deduction
-var inventoryServiceUrl = builder.Configuration.GetValue<string>("ServiceUrls:InventoryService") ?? "http://localhost:5002";
+// Register Repositories and Services
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderService, OrderServiceClass>();
+
+// Register typed HttpClient for InventoryServiceClient with configurable base URL and timeout
+var inventoryServiceUrl = builder.Configuration["ServiceUrls:InventoryService"] ?? "http://localhost:5002";
 builder.Services.AddHttpClient<IInventoryServiceClient, InventoryServiceClient>(client =>
 {
     client.BaseAddress = new Uri(inventoryServiceUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
-// Register Repositories and Services (Internal MVC pattern)
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderServiceClass>();
+// Restrictive CORS
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000", "http://localhost:4200", "http://localhost:5000", "http://localhost:5173" };
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+    options.AddPolicy("ConfiguredCorsPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();
 
-// Seed initial sample orders
+// Seed initial data during startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var environment = services.GetRequiredService<IHostEnvironment>();
+
     try
     {
         var context = services.GetRequiredService<OrderDbContext>();
-        await DbInitializer.InitializeAsync(context);
+        await DbInitializer.InitializeAsync(context, logger, environment);
     }
     catch (Exception ex)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the Order database.");
+        logger.LogCritical(ex, "FATAL: OrderService database initialization failed. Halting application startup.");
+        throw;
     }
 }
 
@@ -105,9 +117,47 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
-app.UseCors("AllowAll");
+app.UseCors("ConfiguredCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Health check endpoints: /health/live and /health/ready
+app.MapGet("/health/live", () => Results.Ok(new
+{
+    status = "Healthy",
+    service = "OrderService",
+    timestamp = DateTime.UtcNow
+}));
+
+app.MapGet("/health/ready", async (OrderDbContext context) =>
+{
+    try
+    {
+        bool canConnect = await context.Database.CanConnectAsync();
+        if (canConnect)
+        {
+            return Results.Ok(new
+            {
+                status = "Ready",
+                service = "OrderService",
+                database = "Pharmacy_OrderDB",
+                timestamp = DateTime.UtcNow
+            });
+        }
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new
+        {
+            status = "Unhealthy",
+            service = "OrderService",
+            error = ex.Message,
+            timestamp = DateTime.UtcNow
+        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapControllers();
 
 app.Run();

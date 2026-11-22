@@ -39,7 +39,46 @@ public class OrderServiceClass : IOrderService
             return ApiResponse<OrderResponseDto>.FailureResult("Order must contain at least one item.");
         }
 
-        decimal totalAmount = dto.Items.Sum(i => i.Quantity * i.UnitPrice);
+        // Validate quantities are strictly positive
+        if (dto.Items.Any(i => i.Quantity <= 0))
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Order item quantity must be strictly greater than zero.");
+        }
+
+        // Server-side price calculation: fetch verified drug details from InventoryService
+        var validatedItems = new List<OrderItem>();
+        foreach (var item in dto.Items)
+        {
+            var drug = await _inventoryClient.GetDrugDetailsAsync(item.DrugId);
+            if (drug == null)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult(
+                    $"Drug with ID {item.DrugId} ('{item.DrugName}') does not exist in Inventory.");
+            }
+
+            if (drug.ExpiryDate < DateTime.UtcNow)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult(
+                    $"Drug '{drug.DrugName}' has expired ({drug.ExpiryDate:yyyy-MM-dd}) and cannot be ordered.");
+            }
+
+            if (!drug.IsAvailable || drug.Quantity < item.Quantity)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult(
+                    $"Insufficient stock for '{drug.DrugName}'. Requested: {item.Quantity}, Available in inventory: {drug.Quantity}.");
+            }
+
+            // Always use trusted server-side price and medicine name from InventoryService
+            validatedItems.Add(new OrderItem
+            {
+                DrugId = drug.DrugId,
+                DrugName = drug.DrugName,
+                Quantity = item.Quantity,
+                UnitPrice = drug.Price
+            });
+        }
+
+        decimal totalAmount = validatedItems.Sum(i => i.Quantity * i.UnitPrice);
 
         var order = new Order
         {
@@ -49,13 +88,7 @@ public class OrderServiceClass : IOrderService
             Status = string.Equals(dto.Status, OrderStatuses.Cart, StringComparison.OrdinalIgnoreCase)
                 ? OrderStatuses.Cart
                 : OrderStatuses.Pending,
-            OrderItems = dto.Items.Select(i => new OrderItem
-            {
-                DrugId = i.DrugId,
-                DrugName = i.DrugName.Trim(),
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice
-            }).ToList()
+            OrderItems = validatedItems
         };
 
         // If placing an active order (Pending), trigger inventory stock deduction
@@ -63,7 +96,7 @@ public class OrderServiceClass : IOrderService
         {
             var stockDeductRequest = new InterServiceDeductStockRequest
             {
-                Items = dto.Items.Select(i => new InterServiceDeductStockItem
+                Items = validatedItems.Select(i => new InterServiceDeductStockItem
                 {
                     DrugId = i.DrugId,
                     Quantity = i.Quantity
@@ -74,7 +107,7 @@ public class OrderServiceClass : IOrderService
             if (!stockDeducted)
             {
                 return ApiResponse<OrderResponseDto>.FailureResult(
-                    "Cannot place order. Requested medicines are out of stock, expired, or exceed available inventory.",
+                    "Cannot place order. Inventory stock deduction failed or medicine is out of stock.",
                     new List<string> { "Inventory stock deduction failed or medicine is expired/unavailable." });
             }
         }
@@ -90,14 +123,42 @@ public class OrderServiceClass : IOrderService
             return ApiResponse<OrderResponseDto>.FailureResult("Cart must contain at least one drug item.");
         }
 
+        if (dto.Items.Any(i => i.Quantity <= 0))
+        {
+            return ApiResponse<OrderResponseDto>.FailureResult("Item quantity must be strictly greater than zero.");
+        }
+
+        // Validate items and retrieve server prices
+        var validatedItems = new List<OrderItem>();
+        foreach (var item in dto.Items)
+        {
+            var drug = await _inventoryClient.GetDrugDetailsAsync(item.DrugId);
+            if (drug == null)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult($"Drug with ID {item.DrugId} was not found in Inventory.");
+            }
+
+            if (drug.ExpiryDate < DateTime.UtcNow)
+            {
+                return ApiResponse<OrderResponseDto>.FailureResult($"Drug '{drug.DrugName}' has expired and cannot be added to cart.");
+            }
+
+            validatedItems.Add(new OrderItem
+            {
+                DrugId = drug.DrugId,
+                DrugName = drug.DrugName,
+                Quantity = item.Quantity,
+                UnitPrice = drug.Price
+            });
+        }
+
         // Check if there is an existing Cart order for this doctor
         var doctorOrders = await _orderRepository.GetOrdersByDoctorIdAsync(doctorId);
         var existingCart = doctorOrders.FirstOrDefault(o => o.Status == OrderStatuses.Cart);
 
         if (existingCart != null)
         {
-            // Add new items to existing cart
-            foreach (var item in dto.Items)
+            foreach (var item in validatedItems)
             {
                 var existingItem = existingCart.OrderItems.FirstOrDefault(oi => oi.DrugId == item.DrugId);
                 if (existingItem != null)
@@ -110,7 +171,7 @@ public class OrderServiceClass : IOrderService
                     {
                         OrderId = existingCart.OrderId,
                         DrugId = item.DrugId,
-                        DrugName = item.DrugName.Trim(),
+                        DrugName = item.DrugName,
                         Quantity = item.Quantity,
                         UnitPrice = item.UnitPrice
                     });
@@ -127,15 +188,9 @@ public class OrderServiceClass : IOrderService
         {
             DoctorID = doctorId,
             OrderDate = DateTime.UtcNow,
-            TotalAmount = dto.Items.Sum(i => i.Quantity * i.UnitPrice),
+            TotalAmount = validatedItems.Sum(i => i.Quantity * i.UnitPrice),
             Status = OrderStatuses.Cart,
-            OrderItems = dto.Items.Select(i => new OrderItem
-            {
-                DrugId = i.DrugId,
-                DrugName = i.DrugName.Trim(),
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice
-            }).ToList()
+            OrderItems = validatedItems
         };
 
         var created = await _orderRepository.CreateOrderAsync(cartOrder);
@@ -255,7 +310,15 @@ public class OrderServiceClass : IOrderService
                         Quantity = oi.Quantity
                     }).ToList()
                 };
-                await _inventoryClient.ReleaseStockAsync(releaseRequest);
+
+                var restored = await _inventoryClient.ReleaseStockAsync(releaseRequest);
+                if (!restored)
+                {
+                    // If stock restoration fails, do NOT report successful cancellation!
+                    return ApiResponse<OrderResponseDto>.FailureResult(
+                        "Cannot cancel order. Stock restoration to inventory failed. Please try again.",
+                        new List<string> { "InventoryService was unable to restore reserved drug quantities." });
+                }
             }
         }
 

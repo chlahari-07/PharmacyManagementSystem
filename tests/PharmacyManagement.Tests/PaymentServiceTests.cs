@@ -1,8 +1,5 @@
-using System.Net;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using Moq.Protected;
 using NUnit.Framework;
 using PaymentService.Data;
 using PaymentService.DTOs;
@@ -18,6 +15,7 @@ public class PaymentServiceTests
 {
     private PaymentDbContext _context = null!;
     private IPaymentRepository _paymentRepository = null!;
+    private Mock<IOrderServiceClient> _mockOrderServiceClient = null!;
     private IPaymentService _paymentService = null!;
 
     [SetUp]
@@ -29,7 +27,40 @@ public class PaymentServiceTests
 
         _context = new PaymentDbContext(options);
         _paymentRepository = new PaymentRepository(_context);
-        _paymentService = new PaymentServiceClass(_paymentRepository);
+        _mockOrderServiceClient = new Mock<IOrderServiceClient>();
+
+        // Default: Order 1 exists, Pending, TotalAmount = $500.00
+        _mockOrderServiceClient
+            .Setup(c => c.GetOrderForValidationAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OrderValidationResultDto
+            {
+                OrderId = 1,
+                DoctorID = 2,
+                TotalAmount = 500.00m,
+                Status = OrderStatuses.Pending
+            });
+
+        // Order 2: Cancelled order
+        _mockOrderServiceClient
+            .Setup(c => c.GetOrderForValidationAsync(2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OrderValidationResultDto
+            {
+                OrderId = 2,
+                DoctorID = 2,
+                TotalAmount = 250.00m,
+                Status = OrderStatuses.Cancelled
+            });
+
+        // Non-existent order 999: returns null
+        _mockOrderServiceClient
+            .Setup(c => c.GetOrderForValidationAsync(999, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((OrderValidationResultDto?)null);
+
+        _mockOrderServiceClient
+            .Setup(c => c.UpdateOrderStatusToVerifiedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        _paymentService = new PaymentServiceClass(_paymentRepository, _mockOrderServiceClient.Object);
     }
 
     [TearDown]
@@ -60,6 +91,8 @@ public class PaymentServiceTests
         Assert.That(result.Data.Amount, Is.EqualTo(500.00m));
         Assert.That(result.Data.PaymentStatus, Is.EqualTo(PaymentStatuses.Completed));
         Assert.That(result.Data.TransactionReference, Is.Not.Empty);
+        Assert.That(result.Message, Does.Contain("No real money was transferred"));
+        _mockOrderServiceClient.Verify(c => c.UpdateOrderStatusToVerifiedAsync(1, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -96,86 +129,26 @@ public class PaymentServiceTests
     [Test]
     public async Task TC28_SimulatePayment_WithIncorrectAmount_RejectsPayment()
     {
-        // Arrange: Mock HttpClient returning order total = 500, but payment = 300
-        var mockHandler = new Mock<HttpMessageHandler>();
-        var orderResponseJson = JsonSerializer.Serialize(new
-        {
-            success = true,
-            message = "Order details",
-            data = new
-            {
-                orderId = 1,
-                status = "Pending",
-                totalAmount = 500.00m
-            }
-        });
-
-        mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(orderResponseJson, System.Text.Encoding.UTF8, "application/json")
-            });
-
-        var client = new HttpClient(mockHandler.Object);
-        var mockFactory = new Mock<IHttpClientFactory>();
-        mockFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
-
-        var serviceWithOrderValidation = new PaymentServiceClass(_paymentRepository, mockFactory.Object);
-
+        // Arrange: Order 1 has TotalAmount $500.00, but client sends $300.00
         var simulateDto = new SimulatePaymentDto
         {
             OrderId = 1,
-            Amount = 300.00m, // Incorrect amount (order total is 500)
-            PaymentMethod = "UPI"
+            Amount = 300.00m,
+            PaymentMethod = "CreditCard"
         };
 
         // Act
-        var result = await serviceWithOrderValidation.SimulatePaymentAsync(simulateDto);
+        var result = await _paymentService.SimulatePaymentAsync(simulateDto);
 
         // Assert
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Message, Does.Contain("does not match"));
+        Assert.That(result.Message, Does.Contain("does not match the actual order total"));
     }
 
     [Test]
-    public async Task TC_CancelBeforePayment_PaymentRejectedOnCancelledOrder()
+    public async Task TC30_SimulatePayment_ForCancelledOrder_StrictlyRejected()
     {
-        // Arrange: Mock HttpClient returning order status = "Cancelled"
-        var mockHandler = new Mock<HttpMessageHandler>();
-        var orderResponseJson = JsonSerializer.Serialize(new
-        {
-            success = true,
-            message = "Order details",
-            data = new
-            {
-                orderId = 2,
-                status = "Cancelled",
-                totalAmount = 250.00m
-            }
-        });
-
-        mockHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(orderResponseJson, System.Text.Encoding.UTF8, "application/json")
-            });
-
-        var client = new HttpClient(mockHandler.Object);
-        var mockFactory = new Mock<IHttpClientFactory>();
-        mockFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
-
-        var serviceWithOrderValidation = new PaymentServiceClass(_paymentRepository, mockFactory.Object);
-
+        // Arrange: Order 2 is Cancelled
         var simulateDto = new SimulatePaymentDto
         {
             OrderId = 2,
@@ -184,10 +157,52 @@ public class PaymentServiceTests
         };
 
         // Act
-        var result = await serviceWithOrderValidation.SimulatePaymentAsync(simulateDto);
+        var result = await _paymentService.SimulatePaymentAsync(simulateDto);
 
         // Assert
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Message, Does.Contain("cancelled order"));
+        Assert.That(result.Message, Does.Contain("Cannot process payment for a cancelled order"));
+    }
+
+    [Test]
+    public async Task TC35_SimulatePayment_WithNonExistentOrder_RejectsPayment()
+    {
+        // Arrange: Order 999 does not exist
+        var simulateDto = new SimulatePaymentDto
+        {
+            OrderId = 999,
+            Amount = 100.00m,
+            PaymentMethod = "Cash"
+        };
+
+        // Act
+        var result = await _paymentService.SimulatePaymentAsync(simulateDto);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Message, Does.Contain("does not exist"));
+    }
+
+    [Test]
+    public async Task TC36_SimulatePayment_WithSimulateFailureToggle_CreatesFailedTransactionRecord()
+    {
+        // Arrange: Toggle failure simulation to true
+        var simulateDto = new SimulatePaymentDto
+        {
+            OrderId = 1,
+            Amount = 500.00m,
+            PaymentMethod = "DebitCard",
+            SimulateFailure = true
+        };
+
+        // Act
+        var result = await _paymentService.SimulatePaymentAsync(simulateDto);
+
+        // Assert
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Data!.PaymentStatus, Is.EqualTo(PaymentStatuses.Failed));
+        Assert.That(result.Data.TransactionReference, Does.StartWith("SIM-FAILED-"));
+        // Order should not be verified on failed payment
+        _mockOrderServiceClient.Verify(c => c.UpdateOrderStatusToVerifiedAsync(1, It.IsAny<CancellationToken>()), Times.Never);
     }
 }

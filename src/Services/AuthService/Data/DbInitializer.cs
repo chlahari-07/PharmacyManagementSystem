@@ -1,5 +1,7 @@
 using AuthService.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using PharmacyManagement.Common.Models;
 using PharmacyManagement.Common.Security;
 
@@ -7,29 +9,42 @@ namespace AuthService.Data;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(AuthDbContext context)
+    public static async Task InitializeAsync(
+        AuthDbContext context,
+        ILogger logger,
+        IHostEnvironment environment)
     {
-        // Apply EF Core migrations for relational DB (SQL Server) or ensure created for in-memory testing
-        try
+        // 1. Relational database migration: execute EF Core migrations
+        if (context.Database.IsRelational())
         {
-            if (context.Database.IsRelational())
+            try
             {
+                logger.LogInformation("Applying EF Core migrations to SQL Server for AuthService (Pharmacy_UserDB)...");
                 await context.Database.MigrateAsync();
+                logger.LogInformation("EF Core migrations applied successfully for AuthService.");
             }
-            else
+            catch (Exception ex)
             {
-                await context.Database.EnsureCreatedAsync();
+                logger.LogCritical(ex, "FATAL: Database migration failed for AuthService! Application startup aborted.");
+                // Strictly re-throw to stop application startup. Never fall back to EnsureCreatedAsync on SQL Server.
+                throw;
             }
         }
-        catch
+        else
         {
+            // InMemory testing database only
             await context.Database.EnsureCreatedAsync();
         }
 
+        // 2. Prevent duplicate seeding
         if (await context.Users.AnyAsync())
         {
-            return; // DB has already been seeded
+            logger.LogInformation("AuthService database already contains user records. Skipping seed data.");
+            return;
         }
+
+        // 3. Pre-seed default development credentials (Admin and Doctor)
+        logger.LogInformation("Seeding initial Admin and Doctor credentials...");
 
         var admin = new User
         {
@@ -55,5 +70,6 @@ public static class DbInitializer
 
         context.Users.AddRange(admin, doctor);
         await context.SaveChangesAsync();
+        logger.LogInformation("Initial users seeded successfully.");
     }
 }

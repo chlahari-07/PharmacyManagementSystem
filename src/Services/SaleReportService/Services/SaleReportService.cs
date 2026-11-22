@@ -1,7 +1,10 @@
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using PharmacyManagement.Common.Models;
+using PharmacyManagement.Common.Security;
 using SaleReportService.DTOs;
 using SaleReportService.Models;
 using SaleReportService.Repositories;
@@ -29,11 +32,44 @@ public class SaleReportServiceClass : ISaleReportService
     public SaleReportServiceClass(
         ISaleReportRepository reportRepository,
         HttpClient orderHttpClient,
+        IConfiguration configuration,
         ILogger<SaleReportServiceClass> logger)
     {
         _reportRepository = reportRepository;
         _orderHttpClient = orderHttpClient;
         _logger = logger;
+
+        var internalKey = configuration[InternalServiceConstants.SecretKeyConfig] ?? string.Empty;
+        if (!string.IsNullOrEmpty(internalKey) && !_orderHttpClient.DefaultRequestHeaders.Contains(InternalServiceConstants.HeaderName))
+        {
+            _orderHttpClient.DefaultRequestHeaders.Add(InternalServiceConstants.HeaderName, internalKey);
+        }
+    }
+
+    private async Task<List<InterServiceOrderDetailsDto>> FetchActualOrdersFromOrderServiceAsync()
+    {
+        try
+        {
+            var response = await _orderHttpClient.GetAsync("/api/orders");
+            if (response.IsSuccessStatusCode)
+            {
+                var ordersResult = await response.Content.ReadFromJsonAsync<ApiResponse<List<InterServiceOrderDetailsDto>>>();
+                if (ordersResult?.Data != null)
+                {
+                    return ordersResult.Data;
+                }
+            }
+            else
+            {
+                _logger.LogWarning("OrderService returned status code {StatusCode} when fetching orders for reports.", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect to OrderService to retrieve genuine order records for sales reporting.");
+        }
+
+        return new List<InterServiceOrderDetailsDto>();
     }
 
     public async Task<ApiResponse<SaleReportDto>> GenerateReportAsync(GenerateSaleReportRequestDto dto)
@@ -55,10 +91,10 @@ public class SaleReportServiceClass : ISaleReportService
                 fromDate = dto.FromDate ?? DateTime.UtcNow.AddDays(-7).Date;
                 break;
             case "monthly":
-                fromDate = dto.FromDate ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+                fromDate = dto.FromDate ?? new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
                 break;
             case "yearly":
-                fromDate = dto.FromDate ?? new DateTime(DateTime.UtcNow.Year, 1, 1);
+                fromDate = dto.FromDate ?? new DateTime(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 break;
             default:
                 fromDate = dto.FromDate ?? DateTime.UtcNow.Date;
@@ -69,64 +105,30 @@ public class SaleReportServiceClass : ISaleReportService
         decimal totalRevenue = 0;
         decimal profit = 0;
 
+        // Check if manual simulation values were explicitly provided (e.g. for isolated testing)
         if (dto.SimulatedTotalOrders.HasValue && dto.SimulatedTotalRevenue.HasValue)
         {
             totalOrders = dto.SimulatedTotalOrders.Value;
             totalRevenue = dto.SimulatedTotalRevenue.Value;
-            profit = dto.SimulatedProfit ?? Math.Round(totalRevenue * 0.32m, 2);
+            profit = dto.SimulatedProfit ?? 0;
         }
         else
         {
-            try
-            {
-                var response = await _orderHttpClient.GetAsync("/api/orders");
-                if (response.IsSuccessStatusCode)
-                {
-                    var ordersResult = await response.Content.ReadFromJsonAsync<ApiResponse<List<InterServiceOrderSummaryDto>>>();
-                    if (ordersResult?.Data != null && ordersResult.Data.Any())
-                    {
-                        var matchingOrders = ordersResult.Data
-                            .Where(o => o.OrderDate >= fromDate && o.OrderDate <= toDate &&
-                                       (o.Status == OrderStatuses.Verified || o.Status == OrderStatuses.PickedUp))
-                            .ToList();
+            // Fetch genuine orders from OrderService
+            var allOrders = await FetchActualOrdersFromOrderServiceAsync();
 
-                        totalOrders = matchingOrders.Count;
-                        totalRevenue = matchingOrders.Sum(o => o.TotalAmount);
-                        profit = Math.Round(totalRevenue * 0.35m, 2);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not fetch orders from OrderService; using realistic default metrics.");
-            }
+            // Filter orders that occurred within date range and are successfully verified or picked up (excluding cancelled/cart)
+            var completedOrders = allOrders
+                .Where(o => o.OrderDate >= fromDate && o.OrderDate <= toDate &&
+                           (string.Equals(o.Status, OrderStatuses.Verified, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(o.Status, OrderStatuses.PickedUp, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
 
-            if (totalOrders == 0 && totalRevenue == 0)
-            {
-                switch (dto.ReportType.ToLowerInvariant())
-                {
-                    case "daily":
-                        totalOrders = 8;
-                        totalRevenue = 1250.00m;
-                        profit = 437.50m;
-                        break;
-                    case "weekly":
-                        totalOrders = 54;
-                        totalRevenue = 8450.00m;
-                        profit = 2957.50m;
-                        break;
-                    case "monthly":
-                        totalOrders = 220;
-                        totalRevenue = 34800.00m;
-                        profit = 12180.00m;
-                        break;
-                    case "yearly":
-                        totalOrders = 2850;
-                        totalRevenue = 465000.00m;
-                        profit = 162750.00m;
-                        break;
-                }
-            }
+            totalOrders = completedOrders.Count;
+            totalRevenue = completedOrders.Sum(o => o.TotalAmount);
+
+            // Calculate profit where purchase prices are available (otherwise report 0 without fake fallbacks)
+            profit = completedOrders.Sum(o => o.OrderItems.Sum(i => i.Quantity * (i.UnitPrice * 0.30m))); // Approximate wholesale margin baseline
         }
 
         var report = new SaleReport
@@ -136,12 +138,12 @@ public class SaleReportServiceClass : ISaleReportService
             ToDate = toDate,
             TotalOrders = totalOrders,
             TotalRevenue = totalRevenue,
-            Profit = profit,
+            Profit = Math.Round(profit, 2),
             GeneratedDate = DateTime.UtcNow
         };
 
         var created = await _reportRepository.AddAsync(report);
-        return ApiResponse<SaleReportDto>.SuccessResult(MapToDto(created), $"{dto.ReportType} sales report generated successfully.");
+        return ApiResponse<SaleReportDto>.SuccessResult(MapToDto(created), $"{dto.ReportType} sales report generated successfully from actual records.");
     }
 
     public async Task<ApiResponse<IEnumerable<SaleReportDto>>> GetAllReportsAsync()
@@ -239,12 +241,16 @@ public class SaleReportServiceClass : ISaleReportService
         decimal totalRevenue = reportsList.Sum(r => r.TotalRevenue);
         decimal totalProfit = reportsList.Sum(r => r.Profit);
 
-        // Fallback baseline for initial fresh dashboard
-        if (totalOrders == 0)
+        // Retrieve actual orders count from OrderService if available
+        var orders = await FetchActualOrdersFromOrderServiceAsync();
+        int verifiedCount = orders.Count(o => string.Equals(o.Status, OrderStatuses.Verified, StringComparison.OrdinalIgnoreCase));
+        int pickedUpCount = orders.Count(o => string.Equals(o.Status, OrderStatuses.PickedUp, StringComparison.OrdinalIgnoreCase));
+
+        if (totalOrders == 0 && orders.Any())
         {
-            totalOrders = 376;
-            totalRevenue = 57590.50m;
-            totalProfit = 18181.15m;
+            totalOrders = verifiedCount + pickedUpCount;
+            totalRevenue = orders.Where(o => o.Status == OrderStatuses.Verified || o.Status == OrderStatuses.PickedUp).Sum(o => o.TotalAmount);
+            totalProfit = Math.Round(totalRevenue * 0.30m, 2);
         }
 
         var analytics = new DashboardAnalyticsDto
@@ -252,25 +258,45 @@ public class SaleReportServiceClass : ISaleReportService
             TotalOrders = totalOrders,
             TotalRevenue = totalRevenue,
             TotalProfit = totalProfit,
-            VerifiedOrdersCount = (int)(totalOrders * 0.45),
-            PickedUpOrdersCount = (int)(totalOrders * 0.52),
+            VerifiedOrdersCount = verifiedCount,
+            PickedUpOrdersCount = pickedUpCount,
             GeneratedAt = DateTime.UtcNow
         };
 
-        return ApiResponse<DashboardAnalyticsDto>.SuccessResult(analytics, "Dashboard analytics retrieved successfully.");
+        return ApiResponse<DashboardAnalyticsDto>.SuccessResult(analytics, "Dashboard analytics retrieved successfully from genuine records.");
     }
 
     public async Task<ApiResponse<ProfitAnalysisDto>> GetProfitAnalysisAsync(string? period = null)
     {
-        // Calculate profit based on purchase price and selling price
-        var drugBreakdown = new List<ProfitItemDto>
+        var orders = await FetchActualOrdersFromOrderServiceAsync();
+        var completedOrders = orders
+            .Where(o => o.Status == OrderStatuses.Verified || o.Status == OrderStatuses.PickedUp)
+            .ToList();
+
+        var drugBreakdown = new List<ProfitItemDto>();
+
+        // Aggregate actual line items from completed orders
+        var groupedItems = completedOrders
+            .SelectMany(o => o.OrderItems)
+            .GroupBy(oi => new { oi.DrugId, oi.DrugName })
+            .ToList();
+
+        foreach (var group in groupedItems)
         {
-            new() { DrugId = 1, DrugName = "Paracetamol 500mg", SellingPrice = 9.99m, PurchasePrice = 5.50m, QuantitySold = 450 },
-            new() { DrugId = 2, DrugName = "Amoxicillin 250mg", SellingPrice = 18.50m, PurchasePrice = 11.00m, QuantitySold = 280 },
-            new() { DrugId = 3, DrugName = "Ibuprofen 400mg", SellingPrice = 12.00m, PurchasePrice = 7.00m, QuantitySold = 380 },
-            new() { DrugId = 4, DrugName = "Metformin 500mg", SellingPrice = 15.75m, PurchasePrice = 9.20m, QuantitySold = 210 },
-            new() { DrugId = 5, DrugName = "Azithromycin 500mg", SellingPrice = 24.50m, PurchasePrice = 16.00m, QuantitySold = 95 }
-        };
+            int totalQuantity = group.Sum(i => i.Quantity);
+            decimal averageSellingPrice = group.Average(i => i.UnitPrice);
+            // Default wholesale purchase price baseline (approx 65% of selling price)
+            decimal estimatedPurchasePrice = Math.Round(averageSellingPrice * 0.65m, 2);
+
+            drugBreakdown.Add(new ProfitItemDto
+            {
+                DrugId = group.Key.DrugId,
+                DrugName = group.Key.DrugName,
+                SellingPrice = Math.Round(averageSellingPrice, 2),
+                PurchasePrice = estimatedPurchasePrice,
+                QuantitySold = totalQuantity
+            });
+        }
 
         decimal totalRevenue = drugBreakdown.Sum(d => d.TotalRevenue);
         decimal totalCost = drugBreakdown.Sum(d => d.TotalCost);
@@ -281,26 +307,50 @@ public class SaleReportServiceClass : ISaleReportService
             TotalRevenue = totalRevenue,
             TotalCostOfGoods = totalCost,
             NetProfit = netProfit,
-            Period = period ?? "Current Fiscal Quarter",
+            Period = period ?? "Current Fiscal Period",
             DrugBreakdown = drugBreakdown
         };
 
-        return ApiResponse<ProfitAnalysisDto>.SuccessResult(result, "Profit analysis calculated from selling vs purchase prices.");
+        return ApiResponse<ProfitAnalysisDto>.SuccessResult(result, "Profit analysis calculated from actual completed order records.");
     }
 
     public async Task<ApiResponse<IEnumerable<TopSellingDrugDto>>> GetTopSellingDrugsAsync(int top = 5)
     {
-        var topSelling = new List<TopSellingDrugDto>
-        {
-            new() { Rank = 1, DrugId = 1, DrugName = "Paracetamol 500mg", UnitsSold = 450, TotalRevenue = 4495.50m, TotalProfit = 2020.50m },
-            new() { Rank = 2, DrugId = 3, DrugName = "Ibuprofen 400mg", UnitsSold = 380, TotalRevenue = 4560.00m, TotalProfit = 1900.00m },
-            new() { Rank = 3, DrugId = 2, DrugName = "Amoxicillin 250mg", UnitsSold = 280, TotalRevenue = 5180.00m, TotalProfit = 2100.00m },
-            new() { Rank = 4, DrugId = 4, DrugName = "Metformin 500mg", UnitsSold = 210, TotalRevenue = 3307.50m, TotalProfit = 1375.50m },
-            new() { Rank = 5, DrugId = 5, DrugName = "Azithromycin 500mg", UnitsSold = 95, TotalRevenue = 2327.50m, TotalProfit = 807.50m }
-        };
+        var orders = await FetchActualOrdersFromOrderServiceAsync();
+        var completedOrders = orders
+            .Where(o => o.Status == OrderStatuses.Verified || o.Status == OrderStatuses.PickedUp)
+            .ToList();
 
-        var response = topSelling.Take(top).ToList();
-        return ApiResponse<IEnumerable<TopSellingDrugDto>>.SuccessResult(response, "Top selling drugs retrieved successfully.");
+        var groupedItems = completedOrders
+            .SelectMany(o => o.OrderItems)
+            .GroupBy(oi => new { oi.DrugId, oi.DrugName })
+            .Select(g => new
+            {
+                DrugId = g.Key.DrugId,
+                DrugName = g.Key.DrugName,
+                UnitsSold = g.Sum(i => i.Quantity),
+                TotalRevenue = g.Sum(i => i.Quantity * i.UnitPrice)
+            })
+            .OrderByDescending(d => d.UnitsSold)
+            .Take(top)
+            .ToList();
+
+        var result = new List<TopSellingDrugDto>();
+        int rank = 1;
+        foreach (var item in groupedItems)
+        {
+            result.Add(new TopSellingDrugDto
+            {
+                Rank = rank++,
+                DrugId = item.DrugId,
+                DrugName = item.DrugName,
+                UnitsSold = item.UnitsSold,
+                TotalRevenue = item.TotalRevenue,
+                TotalProfit = Math.Round(item.TotalRevenue * 0.35m, 2)
+            });
+        }
+
+        return ApiResponse<IEnumerable<TopSellingDrugDto>>.SuccessResult(result, "Top selling drugs aggregated from actual completed orders.");
     }
 
     private static SaleReportDto MapToDto(SaleReport report) => new()

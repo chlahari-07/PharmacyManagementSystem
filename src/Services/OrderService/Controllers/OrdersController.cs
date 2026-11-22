@@ -110,16 +110,29 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
-    /// Track order status and details by Order ID (Doctor and Admin)
+    /// Track order status and details by Order ID (Doctor can view own order, Admin can view any)
     /// </summary>
     [Authorize]
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrderById(int id)
     {
         var result = await _orderService.GetOrderByIdAsync(id);
-        if (!result.Success) return NotFound(result);
+        if (!result.Success || result.Data == null) return NotFound(result);
+
+        // Ownership check: Doctor can only access their own order
+        var userRole = User.FindFirstValue(ClaimTypes.Role);
+        int currentUserId = ExtractDoctorId(null);
+
+        if (string.Equals(userRole, UserRoles.Doctor, StringComparison.OrdinalIgnoreCase) &&
+            result.Data.DoctorID != currentUserId)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<OrderResponseDto>.FailureResult("Access denied: You can only view orders placed by yourself."));
+        }
+
         return Ok(result);
     }
 
@@ -190,14 +203,30 @@ public class OrdersController : ControllerBase
     }
 
     /// <summary>
-    /// Cancel an order (Doctor or Admin)
+    /// Cancel an order (Doctor can cancel own order before pickup, Admin can cancel any)
     /// </summary>
     [Authorize]
     [HttpPut("{id:int}/cancel")]
     [ProducesResponseType(typeof(ApiResponse<OrderResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CancelOrder(int id)
     {
+        var orderResult = await _orderService.GetOrderByIdAsync(id);
+        if (!orderResult.Success || orderResult.Data == null) return NotFound(orderResult);
+
+        // Ownership check: Doctor can only cancel their own order
+        var userRole = User.FindFirstValue(ClaimTypes.Role);
+        int currentUserId = ExtractDoctorId(null);
+
+        if (string.Equals(userRole, UserRoles.Doctor, StringComparison.OrdinalIgnoreCase) &&
+            orderResult.Data.DoctorID != currentUserId)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<OrderResponseDto>.FailureResult("Access denied: You can only cancel your own orders."));
+        }
+
         var result = await _orderService.CancelOrderAsync(id);
         if (!result.Success) return BadRequest(result);
         return Ok(result);

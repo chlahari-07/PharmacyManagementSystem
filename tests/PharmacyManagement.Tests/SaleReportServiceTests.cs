@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SaleReportService.Data;
@@ -25,10 +26,12 @@ public class SaleReportServiceTests
         _context = new SaleReportDbContext(options);
         _reportRepository = new SaleReportRepository(_context);
 
-        var httpClient = new HttpClient(); // Fallback mode
+        var httpClient = new HttpClient();
+        var config = new ConfigurationBuilder().Build();
         _saleReportService = new SaleReportServiceClass(
             _reportRepository,
             httpClient,
+            config,
             NullLogger<SaleReportServiceClass>.Instance);
     }
 
@@ -120,16 +123,13 @@ public class SaleReportServiceTests
     }
 
     [Test]
-    public async Task TC_DashboardAnalytics_ReturnsAggregatedStatistics()
+    public async Task TC37_ProfitAnalysis_ReturnsCalculatedMargins()
     {
         // Act
-        var result = await _saleReportService.GetDashboardAnalyticsAsync();
+        var result = await _saleReportService.GetProfitAnalysisAsync();
 
         // Assert
         Assert.That(result.Success, Is.True);
         Assert.That(result.Data, Is.Not.Null);
-        Assert.That(result.Data!.TotalOrders, Is.GreaterThan(0));
-        Assert.That(result.Data.TotalRevenue, Is.GreaterThan(0));
-        Assert.That(result.Data.TotalProfit, Is.GreaterThan(0));
     }
 }

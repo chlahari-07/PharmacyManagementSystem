@@ -48,3 +48,11 @@ public class UpdatePaymentStatusDto
     [RegularExpression("^(Pending|Completed|Failed)$", ErrorMessage = "Status must be Pending, Completed, or Failed.")]
     public string PaymentStatus { get; set; } = string.Empty;
 }
+
+public class OrderValidationResultDto
+{
+    public int OrderId { get; set; }
+    public int DoctorID { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string Status { get; set; } = string.Empty;
+}

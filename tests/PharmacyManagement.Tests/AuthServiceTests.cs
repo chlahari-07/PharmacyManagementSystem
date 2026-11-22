@@ -28,7 +28,10 @@ public class AuthServiceTests
 
         _context = new AuthDbContext(options);
         _userRepository = new UserRepository(_context);
-        _jwtSettings = new JwtSettings();
+        _jwtSettings = new JwtSettings
+        {
+            SecretKey = "TestSuperSecretKeyForPharmacyManagement2026!@#$"
+        };
 
         _authService = new AuthServiceClass(_userRepository, _jwtSettings);
     }

@@ -1,32 +1,43 @@
 using InventoryService.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace InventoryService.Data;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(InventoryDbContext context)
+    public static async Task InitializeAsync(
+        InventoryDbContext context,
+        ILogger logger,
+        IHostEnvironment environment)
     {
-        try
+        if (context.Database.IsRelational())
         {
-            if (context.Database.IsRelational())
+            try
             {
+                logger.LogInformation("Applying EF Core migrations to SQL Server for InventoryService (Pharmacy_InventoryDB)...");
                 await context.Database.MigrateAsync();
+                logger.LogInformation("EF Core migrations applied successfully for InventoryService.");
             }
-            else
+            catch (Exception ex)
             {
-                await context.Database.EnsureCreatedAsync();
+                logger.LogCritical(ex, "FATAL: Database migration failed for InventoryService! Application startup aborted.");
+                throw;
             }
         }
-        catch
+        else
         {
             await context.Database.EnsureCreatedAsync();
         }
 
         if (await context.Drugs.AnyAsync())
         {
+            logger.LogInformation("Inventory database already contains drug records. Skipping seed data.");
             return;
         }
+
+        logger.LogInformation("Seeding initial inventory, suppliers, and drugs...");
 
         // Seed Suppliers
         var supplier1 = new Supplier
@@ -101,77 +112,67 @@ public static class DbInitializer
         var drug5 = new Drug
         {
             DrugName = "Azithromycin 500mg",
-            Description = "Macrolide antibiotic for bacterial infections",
+            Description = "Macrolide antibiotic for respiratory tract infections",
             Category = "Antibiotics",
             Price = 24.50m,
             ExpiryDate = DateTime.UtcNow.AddMonths(8),
-            Quantity = 8, // Low stock: 8 < MinimumStockQuantity (20)
+            Quantity = 10, // Below minimum 20 - low stock trigger
             MinimumStockQuantity = 20,
             IsAvailable = true
         };
 
-        // Seed an expired drug for expired report testing
+        // Seed an expired drug for monitoring testing
         var drug6 = new Drug
         {
-            DrugName = "Cough Syrup Dx 100ml",
-            Description = "Antitussive cough suppressant",
-            Category = "Cough & Cold",
-            Price = 8.25m,
-            ExpiryDate = DateTime.UtcNow.AddDays(-15), // Expired 15 days ago
-            Quantity = 15,
-            MinimumStockQuantity = 10,
+            DrugName = "Expired Aspirin 100mg",
+            Description = "Aspirin batch past expiry date for QA testing",
+            Category = "Analgesics",
+            Price = 5.00m,
+            ExpiryDate = DateTime.UtcNow.AddMonths(-3), // Expired 3 months ago
+            Quantity = 50,
+            MinimumStockQuantity = 15,
             IsAvailable = false
         };
 
         context.Drugs.AddRange(drug1, drug2, drug3, drug4, drug5, drug6);
         await context.SaveChangesAsync();
 
-        // Seed Inventory records
-        var inv1 = new Inventory
+        // Seed initial Inventory stock inward batches
+        var inventory1 = new Inventory
         {
             SupplierId = supplier1.SupplierId,
             DrugId = drug1.DrugId,
             PurchasePrice = 5.50m,
             QuantitySupplied = 200,
             SupplyDate = DateTime.UtcNow.AddDays(-30),
-            BatchNumber = "BATCH-PCM-2026",
-            Notes = "Standard replenishment shipment"
+            BatchNumber = "BATCH-PARA-2026-01",
+            Notes = "Initial wholesale delivery of Paracetamol 500mg"
         };
 
-        var inv2 = new Inventory
+        var inventory2 = new Inventory
         {
-            SupplierId = supplier1.SupplierId,
+            SupplierId = supplier2.SupplierId,
             DrugId = drug2.DrugId,
             PurchasePrice = 11.00m,
             QuantitySupplied = 150,
             SupplyDate = DateTime.UtcNow.AddDays(-20),
-            BatchNumber = "BATCH-AMX-2026",
-            Notes = "Antibiotic restocking"
+            BatchNumber = "BATCH-AMOX-2026-02",
+            Notes = "Initial wholesale delivery of Amoxicillin 250mg"
         };
 
-        var inv3 = new Inventory
+        var inventory3 = new Inventory
         {
-            SupplierId = supplier2.SupplierId,
+            SupplierId = supplier1.SupplierId,
             DrugId = drug3.DrugId,
             PurchasePrice = 7.00m,
             QuantitySupplied = 300,
             SupplyDate = DateTime.UtcNow.AddDays(-15),
-            BatchNumber = "BATCH-IBU-2026",
-            Notes = "Anti-inflammatory stock"
+            BatchNumber = "BATCH-IBU-2026-03",
+            Notes = "Initial wholesale delivery of Ibuprofen 400mg"
         };
 
-        var inv4 = new Inventory
-        {
-            SupplierId = supplier2.SupplierId,
-            DrugId = drug4.DrugId,
-            PurchasePrice = 9.20m,
-            QuantitySupplied = 120,
-            SupplyDate = DateTime.UtcNow.AddDays(-10),
-            BatchNumber = "BATCH-MET-2026",
-            Notes = "Diabetes care shipment"
-        };
-
-        context.Inventories.AddRange(inv1, inv2, inv3, inv4);
+        context.Inventory.AddRange(inventory1, inventory2, inventory3);
         await context.SaveChangesAsync();
+        logger.LogInformation("Inventory records seeded successfully.");
     }
 }

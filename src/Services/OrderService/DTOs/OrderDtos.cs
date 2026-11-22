@@ -88,3 +88,13 @@ public class InterServiceDeductStockRequest
 {
     public List<InterServiceDeductStockItem> Items { get; set; } = new();
 }
+
+public class DrugValidationDto
+{
+    public int DrugId { get; set; }
+    public string DrugName { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+    public bool IsAvailable { get; set; }
+    public DateTime ExpiryDate { get; set; }
+}

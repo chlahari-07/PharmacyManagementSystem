@@ -14,6 +14,15 @@ public static class AuthenticationExtensions
     {
         var jwtSettings = new JwtSettings();
         configuration.GetSection(JwtSettings.SectionName).Bind(jwtSettings);
+
+        // Validate signing key at startup - reject missing or insecure keys
+        if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey) || jwtSettings.SecretKey.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "JWT SecretKey is missing or too short (minimum 32 characters required). " +
+                "Please configure 'JwtSettings:SecretKey' via User Secrets or Environment Variables.");
+        }
+
         services.AddSingleton(jwtSettings);
 
         var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);

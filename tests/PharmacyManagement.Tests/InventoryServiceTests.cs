@@ -278,4 +278,43 @@ public class InventoryServiceTests
         var updatedDrug = await _context.Drugs.FindAsync(drug.DrugId);
         Assert.That(updatedDrug!.Quantity, Is.EqualTo(100)); // 50 + 50
     }
+
+    [Test]
+    public async Task TC38_DeductStock_WithNegativeOrZeroQuantity_ReturnsFailure()
+    {
+        // Arrange
+        var deductRequest = new DeductStockRequestDto
+        {
+            Items = new List<DeductStockItemDto>
+            {
+                new() { DrugId = 1, Quantity = -5 } // Invalid negative quantity
+            }
+        };
+
+        // Act
+        var result = await _drugService.DeductStockAsync(deductRequest);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Message, Does.Contain("greater than zero"));
+    }
+
+    [Test]
+    public async Task TC39_DeductStock_WithNonExistentDrugId_ReturnsFailure()
+    {
+        // Arrange
+        var deductRequest = new DeductStockRequestDto
+        {
+            Items = new List<DeductStockItemDto>
+            {
+                new() { DrugId = 99999, Quantity = 2 }
+            }
+        };
+
+        // Act
+        var result = await _drugService.DeductStockAsync(deductRequest);
+
+        // Assert
+        Assert.That(result.Success, Is.False);
+    }
 }
